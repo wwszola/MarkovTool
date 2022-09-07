@@ -19,6 +19,8 @@ class MarkovChain(Iterator):
 
         self._my_seed: int = my_seed
 
+        self._count = np.zeros(dimension, dtype=np.int32)
+
     @property
     def state(self) -> int:
         return self._state
@@ -36,20 +38,32 @@ class MarkovChain(Iterator):
         seed(value)
         self._my_seed = value
 
+    @property
+    def count(self):
+        '''States occurence count normalized to sum=1.0 
+        '''
+        sum = np.sum(self._count)
+        if sum == 0:
+            return np.zeros_like(self.count)
+        else:
+            return self._count/np.sum(self._count)
+
     def __iter__(self) -> Self:
         self._step = 0
+        self._count[:] = 0
         seed(self._my_seed)
         return self
 
     def __next__(self) -> int:
         if self._state >= 0 and self._step < self._max_steps:
             old: int = self._state
+            self._count[old] += 1
             self._state = self._pick_next_state()
             self._step += 1
             return old
         else:
             raise StopIteration
-
+    
     def _pick_next_state(self) -> int:
         pick: float = random()
         accumulated = np.add.accumulate(self._stochastic_matrix[self._state])
