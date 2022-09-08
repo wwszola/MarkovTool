@@ -1,4 +1,4 @@
-from typing import Iterator
+from typing import Iterator, List, Tuple
 from typing_extensions import Self
 import numpy as np
 from random import seed, random
@@ -13,12 +13,13 @@ class MarkovChain(Iterator):
 
         self._stochastic_matrix: np.array = None
         self._state: int = initial_state
-        self._initial_state: int = initial_state
+        self.initial_state = initial_state
 
         self._step: int = 0
-        self._max_steps: int = max_steps
+        self._epoch: int = 0
+        self.max_steps = max_steps
 
-        self._my_seed: int = my_seed
+        self.my_seed = my_seed
         self._iter_reset: bool = iter_reset
 
         self._count = np.zeros(dimension, dtype=np.int32)
@@ -49,16 +50,18 @@ class MarkovChain(Iterator):
         self._initial_state = value
 
     @property
-    def count(self):
+    def count(self) -> np.array:
         '''States occurence count normalized to sum=1.0 
         '''
         sum = np.sum(self._count)
         if sum == 0:
-            return np.zeros_like(self.count)
+            return np.zeros_like(self._count)
         else:
             return self._count/np.sum(self._count)
 
     def __iter__(self) -> Self:
+        self._epoch += 1
+
         if self._iter_reset:
             self._step = 0
             self._count[:] = 0
@@ -66,9 +69,8 @@ class MarkovChain(Iterator):
         return self
 
     def __next__(self) -> int:
-        if self._state >= 0:
-            if self._step != 0 and self._step % self.max_steps == 0:
-                raise StopIteration
+        if self._state >= 0 and self._step != (self._epoch)*self._max_steps:
+            
             old: int = self._state
             self._count[old] += 1
             self._state = self._pick_next_state()
@@ -77,6 +79,12 @@ class MarkovChain(Iterator):
         else:
             raise StopIteration
     
+    def run(self):
+        '''Runs 1 epoch, goes through max_steps states
+        '''
+        for out in self:
+            pass
+
     def _pick_next_state(self) -> int:
         pick: float = random()
         accumulated = np.add.accumulate(self._stochastic_matrix[self._state])
