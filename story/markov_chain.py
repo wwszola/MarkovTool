@@ -111,6 +111,14 @@ class MarkovChain(Iterator):
                 return i
         raise StopIteration
         
+    def _set_matrix(self, matrix: np.array) -> None:
+        '''Verify that _stochastich_matrix is right-stochastic matrix
+        '''
+        if np.allclose(np.sum(matrix, 1), 1.0):
+            self._stochastic_matrix = matrix
+        else:
+            raise ValueError('Matrix is not right-stochastic matric')
+
     @staticmethod
     def txt_load(filepath: Path, *args, **kwargs) -> Self:
         '''Creates object from .txt file
@@ -119,22 +127,32 @@ class MarkovChain(Iterator):
         1   state 0 weights     0.1, ..., 0.2,
         . . .        
         '''
+        object: MarkovChain = None
         with filepath.open('r') as file:
             dim = int(file.readline())
             try:
                 object = MarkovChain(dim, *args, **kwargs)
-                object._stochastic_matrix = np.loadtxt(file, dtype=np.float32, ndmin=2, skiprows=0, delimiter=',')
-                object._verify_matrix()
+                object._set_matrix(np.loadtxt(file, dtype=np.float32, ndmin=2, skiprows=0, delimiter=','))
             except ValueError as err:
                 print(f'Failed loading data from {filepath}')
                 print(err)
 
         return object
+    
+    @staticmethod
+    def from_array(matrix: np.array, *args, **kwargs) -> Self:
+        object: MarkovChain = None
+        if matrix.ndim == 2 and matrix.shape[0] == matrix.shape[1]:
+            dim = matrix.shape[0]
+            try:                
+                object = MarkovChain(dim, *args, **kwargs)
+                object._set_matrix(matrix)
+            except ValueError as err:
+                print(f'Failed loading data from array')
+        return object            
 
-    def _verify_matrix(self) -> None:
-        '''Verify that _stochastich_matrix is right-stochastic matrix
-        '''
-        if np.allclose(np.sum(self._stochastic_matrix, 1), 1.0):
-            pass
-        else:
-            raise ValueError('Matrix is not right-stochastic matric')
+    @staticmethod
+    def random(dimension: int, *args, **kwargs) -> Self:
+        matrix = np.random.rand(dimension, dimension)
+        matrix /= matrix.sum(1)[:, np.newaxis]
+        return MarkovChain.from_array(matrix)
