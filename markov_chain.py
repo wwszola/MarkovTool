@@ -16,7 +16,7 @@ class MarkovChain(Iterator):
         self.initial_state = initial_state
 
         self._step: int = 0
-        self._epoch: int = 0
+        self._iter_step: int = 0
         self.max_steps = max_steps
 
         self.my_seed = my_seed
@@ -42,6 +42,14 @@ class MarkovChain(Iterator):
         self._my_seed = value
     
     @property
+    def iter_reset(self) -> bool:
+        return self._iter_reset
+
+    @iter_reset.setter
+    def iter_reset(self, value: bool) -> None:
+        self._iter_reset = value
+            
+    @property
     def initial_state(self) -> int:
         return self._initial_state
     
@@ -51,7 +59,7 @@ class MarkovChain(Iterator):
 
     @property
     def count(self) -> np.array:
-        '''States occurence count normalized to sum=1.0 
+        '''Histogram normalized to sum=1.0 
         '''
         sum = np.sum(self._count)
         if sum == 0:
@@ -60,16 +68,13 @@ class MarkovChain(Iterator):
             return self._count/np.sum(self._count)
 
     def __iter__(self) -> Self:
-        self._epoch += 1
-
         if self._iter_reset:
-            self._step = 0
-            self._count[:] = 0
-            seed(self._my_seed)
+            self.reset()
+        self._iter_step = self._step
         return self
 
     def __next__(self) -> int:
-        if self._state >= 0 and self._step != (self._epoch)*self._max_steps:
+        if self._state >= 0 and self._step < self._iter_step + self.max_steps:
             
             old: int = self._state
             self._count[old] += 1
@@ -79,11 +84,24 @@ class MarkovChain(Iterator):
         else:
             raise StopIteration
     
-    def run(self):
-        '''Runs 1 epoch, goes through max_steps states
+    def reset(self) -> None:
+        self._step = 0
+        self._state = self._initial_state
+        self._count[:] = 0
+        seed(self._my_seed)
+
+    def run(self, record: bool = False) -> List[int]:
+        '''Runs max_steps number of states
+        If record is true returns list of states the chain went through
+        If record is false returns None
         '''
+        tape: List[int] = None
+        if record:
+            tape = []
         for out in self:
-            pass
+            if record:
+                tape.append(out)
+        return tape
 
     def _pick_next_state(self) -> int:
         pick: float = random()
