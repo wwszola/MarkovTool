@@ -1,4 +1,4 @@
-from markov_chain import MarkovChain
+from story import MarkovChain
 
 from statistics import stdev
 from pathlib import Path
