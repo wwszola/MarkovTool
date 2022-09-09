@@ -25,6 +25,14 @@ class MarkovChain(Iterator):
         self._count = np.zeros(dimension, dtype=np.int32)
 
     @property
+    def matrix(self) -> np.array:
+        return self._stochastic_matrix
+
+    @property
+    def state(self) -> int:
+        return self._state
+
+    @property
     def max_steps(self) -> int:
         return self._max_steps
     
