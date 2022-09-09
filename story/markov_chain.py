@@ -1,7 +1,7 @@
 from typing import Iterator, List, Tuple
 from typing_extensions import Self
 import numpy as np
-from random import seed, random
+from numpy.random import Generator, PCG64
 from pathlib import Path
 
 class MarkovChain(Iterator):
@@ -20,6 +20,7 @@ class MarkovChain(Iterator):
         self.max_steps = max_steps
 
         self.my_seed = my_seed
+        self._rng: Generator = None
         self._iter_reset: bool = iter_reset
 
         self._count = np.zeros(dimension, dtype=np.int32)
@@ -46,7 +47,7 @@ class MarkovChain(Iterator):
 
     @my_seed.setter
     def my_seed(self, value: int) -> None:
-        seed(value)
+        self._rng = Generator(PCG64(value))
         self._my_seed = value
     
     @property
@@ -96,7 +97,7 @@ class MarkovChain(Iterator):
         self._step = 0
         self._state = self._initial_state
         self._count[:] = 0
-        seed(self._my_seed)
+        self.my_seed = self.my_seed
 
     def run(self, record: bool = False) -> List[int]:
         '''Runs max_steps number of states
@@ -112,7 +113,7 @@ class MarkovChain(Iterator):
         return tape
 
     def _pick_next_state(self) -> int:
-        pick: float = random()
+        pick: float = self._rng.random()
         accumulated = np.add.accumulate(self._stochastic_matrix[self._state])
         for i, value in enumerate(accumulated):
             if pick < value:
