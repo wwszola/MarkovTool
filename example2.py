@@ -19,3 +19,6 @@ for _ in range(3):
     MarkovChain.reset_static_rng()
     print(chain.run(True))
 
+'''using static rng for picking initial state allows 
+chains with single and multiple initial_state to give identical proccesses
+'''
