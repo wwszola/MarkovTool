@@ -1,26 +1,35 @@
-from typing import Iterator, List, Tuple
+from typing import Iterator, List
 from typing_extensions import Self
 import numpy as np
 from numpy.random import Generator, PCG64
 from pathlib import Path
+from time import time_ns
 
 class MarkovChain(Iterator):
-    def __init__(self, dimension: int = 0, initial_state: int = 0, max_steps: int = 10, my_seed: int = 0, iter_reset: bool = True) -> None:
+    _static_rng_seed = time_ns()
+    _static_rng = Generator(PCG64(_static_rng_seed))
+    @staticmethod
+    def reset_static_rng(a: int = None) -> None:
+        if a is not None:
+           MarkovChain._static_rng_seed = a
+        MarkovChain._static_rng = Generator(PCG64(MarkovChain._static_rng_seed))
+
+    def __init__(self, dimension: int = 0, initial_state: int | List = 0, max_steps: int = 10, my_seed: int = 0, iter_reset: bool = True) -> None:
         if dimension >= 0:
             self._dimension: int = dimension
         else:
             raise ValueError("Dimension must be >= 0")
 
         self._stochastic_matrix: np.array = None
-        self._state: int = initial_state
         self.initial_state = initial_state
+        self._state: int = self._pick_initial_state()
 
         self._step: int = 0
         self._iter_step: int = 0
         self.max_steps = max_steps
 
-        self.my_seed = my_seed
         self._rng: Generator = None
+        self.my_seed = my_seed
         self._iter_reset: bool = iter_reset
 
         self._count = np.zeros(dimension, dtype=np.int32)
@@ -68,12 +77,15 @@ class MarkovChain(Iterator):
         self._iter_reset = value
             
     @property
-    def initial_state(self) -> int:
+    def initial_state(self) -> int | List:
         return self._initial_state
     
     @initial_state.setter
-    def initial_state(self, value) -> None:
-        self._initial_state = value
+    def initial_state(self, value: int | List) -> None:
+        if isinstance(value, List) and np.allclose(np.sum(value), 1.0):
+            self._initial_state = np.array(value, dtype=np.float32)
+        elif isinstance(value, int):
+            self._initial_state = value
 
     @property
     def count(self) -> np.array:
@@ -92,8 +104,7 @@ class MarkovChain(Iterator):
         return self
 
     def __next__(self) -> int:
-        if self._state >= 0 and self._step < self._iter_step + self.max_steps:
-            
+        if self._step < self._iter_step + self.max_steps:
             old: int = self._state
             self._count[old] += 1
             self._state = self._pick_next_state()
@@ -104,7 +115,7 @@ class MarkovChain(Iterator):
     
     def reset(self) -> None:
         self._step = 0
-        self._state = self._initial_state
+        self._state = self._pick_initial_state()
         self._count[:] = 0
         self.my_seed = self.my_seed
 
@@ -120,6 +131,16 @@ class MarkovChain(Iterator):
             if record:
                 tape.append(out)
         return tape
+
+    def _pick_initial_state(self) -> int:
+        if isinstance(self._initial_state, np.ndarray):
+            pick: float = MarkovChain._static_rng.random()
+            accumulated = np.add.accumulate(self._initial_state)
+            for i, value in enumerate(accumulated):
+                if pick < value:
+                    return i
+        else:
+            return self._initial_state
 
     def _pick_next_state(self) -> int:
         pick: float = self._rng.random()
@@ -163,10 +184,10 @@ class MarkovChain(Iterator):
 
     @staticmethod
     def random(dimension: int, precision: int = None, *args, **kwargs) -> Self:
-        matrix = np.random.rand(dimension, dimension)
+        matrix = MarkovChain._static_rng.random((dimension, dimension))
         matrix /= matrix.sum(1)[:, np.newaxis]
         if precision:
             precision_mult: int = 10**precision
             matrix[:, 0:dimension - 1] = np.floor(matrix[:, 0:dimension - 1]*precision_mult)/precision_mult
             matrix[:, dimension - 1] = 1.0 - np.sum(matrix[:, 0:dimension - 1], axis=1)
-        return MarkovChain.from_array(matrix)
+        return MarkovChain.from_array(matrix, *args, **kwargs)
