@@ -29,6 +29,15 @@ class MarkovChain(Iterator):
     def matrix(self) -> np.array:
         return self._stochastic_matrix
 
+    @matrix.setter
+    def matrix(self, matrix: np.array) -> None:
+        '''Verifies that _stochastich_matrix is right-stochastic matrix
+        '''
+        if np.allclose(np.sum(matrix, 1), 1.0):
+            self._stochastic_matrix = matrix
+        else:
+            raise ValueError('Matrix is not right-stochastic matric')
+
     @property
     def state(self) -> int:
         return self._state
@@ -119,14 +128,6 @@ class MarkovChain(Iterator):
             if pick < value:
                 return i
         raise StopIteration
-        
-    def _set_matrix(self, matrix: np.array) -> None:
-        '''Verify that _stochastich_matrix is right-stochastic matrix
-        '''
-        if np.allclose(np.sum(matrix, 1), 1.0):
-            self._stochastic_matrix = matrix
-        else:
-            raise ValueError('Matrix is not right-stochastic matric')
 
     @staticmethod
     def txt_load(filepath: Path, *args, **kwargs) -> Self:
@@ -141,7 +142,7 @@ class MarkovChain(Iterator):
             dim = int(file.readline())
             try:
                 object = MarkovChain(dim, *args, **kwargs)
-                object._set_matrix(np.loadtxt(file, dtype=np.float32, ndmin=2, skiprows=0, delimiter=','))
+                object.matrix = np.loadtxt(file, dtype=np.float32, ndmin=2, skiprows=0, delimiter=',')
             except ValueError as err:
                 print(f'Failed loading data from {filepath}')
                 print(err)
@@ -155,13 +156,17 @@ class MarkovChain(Iterator):
             dim = matrix.shape[0]
             try:                
                 object = MarkovChain(dim, *args, **kwargs)
-                object._set_matrix(matrix)
+                object.matrix = (matrix)
             except ValueError as err:
                 print(f'Failed loading data from array')
         return object            
 
     @staticmethod
-    def random(dimension: int, *args, **kwargs) -> Self:
+    def random(dimension: int, precision: int = None, *args, **kwargs) -> Self:
         matrix = np.random.rand(dimension, dimension)
         matrix /= matrix.sum(1)[:, np.newaxis]
+        if precision:
+            precision_mult: int = 10**precision
+            matrix[:, 0:dimension - 1] = np.floor(matrix[:, 0:dimension - 1]*precision_mult)/precision_mult
+            matrix[:, dimension - 1] = 1.0 - np.sum(matrix[:, 0:dimension - 1], axis=1)
         return MarkovChain.from_array(matrix)
