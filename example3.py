@@ -4,8 +4,7 @@ from copy import deepcopy
 chain = MarkovChain.random(4, iter_reset = False)
 print(chain.run(True))
 
-chain_copy = deepcopy(chain)
+with chain.simulation(max_steps=15) as chain_copy:
+    print(chain.run(True))
+    print(chain_copy.run(True))
 
-print(chain_copy.run(True))
-
-print(chain.run(True))

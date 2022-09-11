@@ -5,7 +5,7 @@ from numpy.random import Generator, PCG64
 from pathlib import Path
 from time import time_ns
 from copy import deepcopy
-from contextlib import ContextDecorator
+from contextlib import contextmanager
 
 class MarkovChain(Iterator):
     _static_rng_seed = time_ns()
@@ -200,3 +200,11 @@ class MarkovChain(Iterator):
             initial_state /= initial_state.sum()[np.newaxis]
             kwargs["initial_state"] = initial_state
         return MarkovChain.from_array(matrix, **kwargs)
+
+    @contextmanager
+    def simulation(self, **kwargs) -> Self:
+        copy = deepcopy(self)
+        for k, v in kwargs.items():
+            setattr(copy, k, v)
+        yield copy
+        del copy
