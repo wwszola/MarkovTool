@@ -183,11 +183,7 @@ class MarkovChain(Iterator):
         return object            
 
     @staticmethod
-    def random(dimension: int, precision: int = None, *args, **kwargs) -> Self:
+    def random(dimension: int, *args, **kwargs) -> Self:
         matrix = MarkovChain._static_rng.random((dimension, dimension))
         matrix /= matrix.sum(1)[:, np.newaxis]
-        if precision:
-            precision_mult: int = 10**precision
-            matrix[:, 0:dimension - 1] = np.floor(matrix[:, 0:dimension - 1]*precision_mult)/precision_mult
-            matrix[:, dimension - 1] = 1.0 - np.sum(matrix[:, 0:dimension - 1], axis=1)
         return MarkovChain.from_array(matrix, *args, **kwargs)
