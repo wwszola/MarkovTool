@@ -17,6 +17,8 @@
 
 ## TODO
 - comment doc clean-up, import clean-up ?
+- skip steps, manual and fast
+- context manager to set properties locally
 - update txt_load for all parameters
 - create tests 
 - statistics example
