@@ -81,8 +81,8 @@ class MarkovChain(Iterator):
         return self._initial_state
     
     @initial_state.setter
-    def initial_state(self, value: int | List) -> None:
-        if isinstance(value, List) and np.allclose(np.sum(value), 1.0):
+    def initial_state(self, value: int | List | np.ndarray) -> None:
+        if isinstance(value, (List, np.ndarray)) and np.allclose(np.sum(value), 1.0):
             self._initial_state = np.array(value, dtype=np.float32)
         elif isinstance(value, int):
             self._initial_state = value
@@ -151,7 +151,7 @@ class MarkovChain(Iterator):
         raise StopIteration
 
     @staticmethod
-    def txt_load(filepath: Path, *args, **kwargs) -> Self:
+    def txt_load(filepath: Path, **kwargs) -> Self:
         '''Creates object from .txt file
         File must be formatted in a following way:
         0   dimension 
@@ -162,7 +162,7 @@ class MarkovChain(Iterator):
         with filepath.open('r') as file:
             dim = int(file.readline())
             try:
-                object = MarkovChain(dim, *args, **kwargs)
+                object = MarkovChain(dim, **kwargs)
                 object.matrix = np.loadtxt(file, dtype=np.float32, ndmin=2, skiprows=0, delimiter=',')
             except ValueError as err:
                 print(f'Failed loading data from {filepath}')
@@ -171,19 +171,23 @@ class MarkovChain(Iterator):
         return object
     
     @staticmethod
-    def from_array(matrix: np.ndarray, *args, **kwargs) -> Self:
+    def from_array(matrix: np.ndarray, **kwargs) -> Self:
         object: MarkovChain = None
         if matrix.ndim == 2 and matrix.shape[0] == matrix.shape[1]:
             dim = matrix.shape[0]
             try:                
-                object = MarkovChain(dim, *args, **kwargs)
+                object = MarkovChain(dim, **kwargs)
                 object.matrix = (matrix)
             except ValueError as err:
                 print(f'Failed loading data from array')
         return object            
 
     @staticmethod
-    def random(dimension: int, *args, **kwargs) -> Self:
+    def random(dimension: int, **kwargs) -> Self:
         matrix = MarkovChain._static_rng.random((dimension, dimension))
         matrix /= matrix.sum(1)[:, np.newaxis]
-        return MarkovChain.from_array(matrix, *args, **kwargs)
+        if "initial_state" not in kwargs:
+            initial_state = MarkovChain._static_rng.random(dimension)
+            initial_state /= initial_state.sum()[np.newaxis]
+            kwargs["initial_state"] = initial_state
+        return MarkovChain.from_array(matrix, **kwargs)
