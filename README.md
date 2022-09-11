@@ -3,6 +3,7 @@
 - Static methods `txt_load`, `from_array`, `random` for creating `MarkovChain` objects
 - `MarkovChain` inherits from `Iterator`, so use it as you wish :)
 - `matrix: np.ndarray` needs to be a [Markov matrix](https://en.wikipedia.org/wiki/Stochastic_matrix)
+- call `print(MarkovChain.random(3).run(record=True))` to generate your first process
 ## Reusing `MarkovChain`
 - setting `iter_reset = True` resets `step`, generates first state, seeds `_state_rng`, clears `count`
 - in order to extend or merge processes set `iter_reset = False`, and adjust desired properites
@@ -15,5 +16,8 @@
 - Setting `my_seed` creates identical process, but unique for every first state
 
 ## TODO
-- comment doc clean-up
+- comment doc clean-up, import clean-up ?
+- update txt_load for all parameters
+- create tests 
+- statistics example
 - ? run simulation (run states with different matrix) - saving state, use as a context manager
