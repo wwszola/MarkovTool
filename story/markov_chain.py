@@ -1,9 +1,11 @@
-from typing import Iterator, List
+from typing import Dict, Iterator, List
 from typing_extensions import Self
 import numpy as np
 from numpy.random import Generator, PCG64
 from pathlib import Path
 from time import time_ns
+from copy import deepcopy
+from contextlib import ContextDecorator
 
 class MarkovChain(Iterator):
     _static_rng_seed = time_ns()
@@ -30,7 +32,7 @@ class MarkovChain(Iterator):
 
         self._state_rng: Generator = None
         self.my_seed = my_seed
-        self._iter_reset: bool = iter_reset
+        self.iter_reset: bool = iter_reset
 
         self._count = np.zeros(dimension, dtype=np.int32)
 
@@ -119,6 +121,13 @@ class MarkovChain(Iterator):
         self._count[:] = 0
         self.my_seed = self.my_seed
 
+    def __deepcopy__(self, memo: Dict) -> Self:
+        result = MarkovChain.__new__(MarkovChain)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            setattr(result, k, deepcopy(v, memo))
+        return result
+    
     def run(self, record: bool = False) -> List[int]:
         '''Runs max_steps number of states
         If record is true returns list of states the chain went through
