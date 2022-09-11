@@ -20,7 +20,7 @@ class MarkovChain(Iterator):
         else:
             raise ValueError("Dimension must be >= 0")
 
-        self._stochastic_matrix: np.array = None
+        self._stochastic_matrix: np.ndarray = None
         self.initial_state = initial_state
         self._state: int = self._pick_initial_state()
 
@@ -28,18 +28,18 @@ class MarkovChain(Iterator):
         self._iter_step: int = 0
         self.max_steps = max_steps
 
-        self._rng: Generator = None
+        self._state_rng: Generator = None
         self.my_seed = my_seed
         self._iter_reset: bool = iter_reset
 
         self._count = np.zeros(dimension, dtype=np.int32)
 
     @property
-    def matrix(self) -> np.array:
+    def matrix(self) -> np.ndarray:
         return self._stochastic_matrix
 
     @matrix.setter
-    def matrix(self, matrix: np.array) -> None:
+    def matrix(self, matrix: np.ndarray) -> None:
         '''Verifies that _stochastich_matrix is right-stochastic matrix
         '''
         if np.allclose(np.sum(matrix, 1), 1.0):
@@ -65,7 +65,7 @@ class MarkovChain(Iterator):
 
     @my_seed.setter
     def my_seed(self, value: int) -> None:
-        self._rng = Generator(PCG64(value))
+        self._state_rng = Generator(PCG64(value))
         self._my_seed = value
     
     @property
@@ -88,7 +88,7 @@ class MarkovChain(Iterator):
             self._initial_state = value
 
     @property
-    def count(self) -> np.array:
+    def count(self) -> np.ndarray:
         '''Histogram normalized to sum=1.0 
         '''
         sum = np.sum(self._count)
@@ -143,7 +143,7 @@ class MarkovChain(Iterator):
             return self._initial_state
 
     def _pick_next_state(self) -> int:
-        pick: float = self._rng.random()
+        pick: float = self._state_rng.random()
         accumulated = np.add.accumulate(self._stochastic_matrix[self._state])
         for i, value in enumerate(accumulated):
             if pick < value:
@@ -171,7 +171,7 @@ class MarkovChain(Iterator):
         return object
     
     @staticmethod
-    def from_array(matrix: np.array, *args, **kwargs) -> Self:
+    def from_array(matrix: np.ndarray, *args, **kwargs) -> Self:
         object: MarkovChain = None
         if matrix.ndim == 2 and matrix.shape[0] == matrix.shape[1]:
             dim = matrix.shape[0]
