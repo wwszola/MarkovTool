@@ -40,21 +40,26 @@ class MarkovChain(Iterator):
 
     @property
     def matrix(self) -> np.ndarray:
-        return self._stochastic_matrix.copy()
+        return copy(self._stochastic_matrix)
 
     @matrix.setter
     def matrix(self, matrix: np.ndarray) -> None:
-        '''Verifies that _stochastich_matrix is right-stochastic matrix
-        '''  
-        matrix /= np.sum(matrix, 1)[:, np.newaxis]
-
-        if np.allclose(np.sum(matrix, 1), 1.0):
-            self._stochastic_matrix = matrix
-        else:
-            raise ValueError('Matrix is not right-stochastic matric')
+        self._stochastic_matrix = self._verify_stochastic_matrix(matrix)
 
     def _verify_stochastic_matrix(self, value: List[List[float]] | np.ndarray) -> np.ndarray:
-        return np.ndarray(value, dtype=np.float32)
+        value = np.array(value, dtype=np.float32)
+        if len(value.shape) != 2 or value.shape[0] != value.shape[1]:
+            raise ValueError('Matrix should be an array NxN in size')
+        if value.shape[0] != self._dimension:
+            raise ValueError('Matrix dimension should be equal to the original dimension')
+        
+        if MarkovChain.normalize:
+            value /= np.sum(value, 1)[:, np.newaxis]
+
+        if not np.allclose(np.sum(value, 1), 1.0):
+            raise ValueError('Matrix should be a right-stochastic matrix')
+        
+        return value
 
     @property
     def state(self) -> int:
@@ -108,7 +113,7 @@ class MarkovChain(Iterator):
         
         elif isinstance(value, int):
             if value < 0 or value >= self._dimension:
-                raise ValueError('Invalid initial state')
+                raise ValueError(f'Invalid initial state: int {value}')
             else:
                 return value
         else:

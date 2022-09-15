@@ -16,7 +16,6 @@
 - Setting `my_seed` creates identical process, but unique for every first state
 
 ## TODO
-- PROPER MATRIX SET, AND WITH context manager
 - comment doc clean-up, ?import clean-up
 - advance steps, manual and ?fast
 - update txt_load for all parameters
