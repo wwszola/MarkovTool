@@ -1,8 +1,24 @@
-## Build and install
+## How to use in a virtual environment
+1. Clone the project
 ```
 git clone https://github.com/wwszola/interactive_story
 cd interactive_story
+```
+2. Create, activate and prepare a virtual environment
+```
+python -m venv venv
+./venv/Scripts/activate
+
+python install -r requirements.txt
 python setup.py install
+```
+3. Run some examples
+```
+python examples/example1.py
+```
+4. Deactivate the virtual environment after use
+```
+deactivate
 ```
 ## Project currently includes:
 ### `MarkovChain` implementation:
