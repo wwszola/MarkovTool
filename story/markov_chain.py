@@ -18,13 +18,17 @@ class MarkovChain(Iterator):
 
     normalize = False
 
-    def __init__(self, dimension: int = 0, initial_state: int | List = 0, max_steps: int = 10, my_seed: int = 0, iter_reset: bool = True) -> None:
+    def __init__(
+        self, dimension: int = 0, 
+        matrix: List[List[float]] | np.ndarray = None, initial_state: int | List = 0, 
+        max_steps: int = 10, my_seed: int = 0, iter_reset: bool = True) -> None:
+
         if dimension >= 0:
             self._dimension: int = dimension
         else:
             raise ValueError("Dimension must be >= 0")
 
-        self._stochastic_matrix: np.ndarray = None
+        self.matrix = matrix
         self.initial_state = initial_state
         self._state: int = self._pick_initial_state()
 
@@ -44,7 +48,8 @@ class MarkovChain(Iterator):
 
     @matrix.setter
     def matrix(self, matrix: np.ndarray) -> None:
-        self._stochastic_matrix = self._verify_stochastic_matrix(matrix)
+        if matrix is not None:
+            self._stochastic_matrix = self._verify_stochastic_matrix(matrix)
 
     def _verify_stochastic_matrix(self, value: List[List[float]] | np.ndarray) -> np.ndarray:
         value = np.array(value, dtype=np.float32)
@@ -192,17 +197,30 @@ class MarkovChain(Iterator):
     @staticmethod
     def txt_load(filepath: Path, **kwargs) -> Self:
         '''Creates object from .txt file
-        File must be formatted in a following way:
+        File must be formatted in a following way (example):
         0   dimension 
-        1   state 0 weights     0.1, ..., 0.2,
+        1   initial state       0.1, ..., 0.3   or  1
+        2   state 0 weights     0.0, ..., 0.2,
         . . .        
         '''
         object: MarkovChain = None
         with filepath.open('r') as file:
             dim = int(file.readline())
             try:
+                if 'initial_state' not in kwargs.keys():
+                    initial_state = np.loadtxt(file, dtype=np.float32, max_rows=1, delimiter=',')
+                    if initial_state.shape:
+                        kwargs['initial_state'] = initial_state
+                    else:
+                        kwargs['initial_state'] = int(initial_state)
+                else:
+                    file.readline()
+
+                if 'matrix' not in kwargs.keys():
+                    kwargs['matrix'] = np.loadtxt(file, dtype=np.float32, ndmin=2, delimiter=',')
+                    
                 object = MarkovChain(dim, **kwargs)
-                object.matrix = np.loadtxt(file, dtype=np.float32, ndmin=2, skiprows=0, delimiter=',')
+                
             except ValueError as err:
                 print(f'Failed loading data from {filepath}')
                 print(err)
