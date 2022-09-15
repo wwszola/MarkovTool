@@ -1,10 +1,9 @@
 from story import MarkovChain
-from copy import deepcopy
 
-chain = MarkovChain.random(4, iter_reset = False)
-print(chain.run(True))
 
-with chain.simulation(max_steps=15) as chain_copy:
-    print(chain.run(True))
-    print(chain_copy.run(True))
-
+chain = MarkovChain.random(4, max_steps = 10, my_seed = 0, iter_reset = True)
+with chain.simulation(initial_state = 3) as chain1:
+    print('iter_reset=True', 'Original process:', chain.run(True), sep='\n')
+    print('Process with set initial_state:', chain1.run(True), sep='\n')
+    with chain1.simulation(my_seed = 7) as chain2:
+        print('Process with set initial state and new seed:', chain2.run(True), sep='\n')

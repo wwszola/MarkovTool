@@ -4,7 +4,7 @@ import numpy as np
 from numpy.random import Generator, PCG64
 from pathlib import Path
 from time import time_ns
-from copy import deepcopy
+from copy import copy, deepcopy
 from contextlib import contextmanager
 
 class MarkovChain(Iterator):
@@ -15,6 +15,8 @@ class MarkovChain(Iterator):
         if a is not None:
            MarkovChain._static_rng_seed = a
         MarkovChain._static_rng = Generator(PCG64(MarkovChain._static_rng_seed))
+
+    normalize = False
 
     def __init__(self, dimension: int = 0, initial_state: int | List = 0, max_steps: int = 10, my_seed: int = 0, iter_reset: bool = True) -> None:
         if dimension >= 0:
@@ -38,16 +40,21 @@ class MarkovChain(Iterator):
 
     @property
     def matrix(self) -> np.ndarray:
-        return self._stochastic_matrix
+        return self._stochastic_matrix.copy()
 
     @matrix.setter
     def matrix(self, matrix: np.ndarray) -> None:
         '''Verifies that _stochastich_matrix is right-stochastic matrix
-        '''
+        '''  
+        matrix /= np.sum(matrix, 1)[:, np.newaxis]
+
         if np.allclose(np.sum(matrix, 1), 1.0):
             self._stochastic_matrix = matrix
         else:
             raise ValueError('Matrix is not right-stochastic matric')
+
+    def _verify_stochastic_matrix(self, value: List[List[float]] | np.ndarray) -> np.ndarray:
+        return np.ndarray(value, dtype=np.float32)
 
     @property
     def state(self) -> int:
@@ -79,16 +86,34 @@ class MarkovChain(Iterator):
         self._iter_reset = value
             
     @property
-    def initial_state(self) -> int | List:
-        return self._initial_state
+    def initial_state(self) -> int | np.ndarray:
+        return copy(self._initial_state)
     
     @initial_state.setter
     def initial_state(self, value: int | List | np.ndarray) -> None:
-        if isinstance(value, (List, np.ndarray)) and np.allclose(np.sum(value), 1.0):
-            self._initial_state = np.array(value, dtype=np.float32)
-        elif isinstance(value, int):
-            self._initial_state = value
+        self._initial_state = self._verify_initial_state(value)
 
+    def _verify_initial_state(self, value: int | List | np.ndarray) -> int | np.ndarray:
+        if isinstance(value, (List, np.ndarray)):
+            if len(value) != self._dimension:
+                raise ValueError('Initial state dimension should be equal to the original dimension')
+
+            if MarkovChain.normalize:
+                value /= np.sum(value)[np.newaxis]                
+
+            if np.allclose(np.sum(value), 1.0):
+                return np.array(value, dtype=np.float32)
+            else:
+                raise ValueError('Initial state probabilities sum should be equal to 1.0')
+        
+        elif isinstance(value, int):
+            if value < 0 or value >= self._dimension:
+                raise ValueError('Invalid initial state')
+            else:
+                return value
+        else:
+            raise TypeError('Initial state should be the type either int, List, numpy.ndarray')
+                
     @property
     def count(self) -> np.ndarray:
         '''Histogram normalized to sum=1.0 
@@ -189,6 +214,7 @@ class MarkovChain(Iterator):
                 object.matrix = (matrix)
             except ValueError as err:
                 print(f'Failed loading data from array')
+                print(err)
         return object            
 
     @staticmethod
@@ -204,7 +230,11 @@ class MarkovChain(Iterator):
     @contextmanager
     def simulation(self, **kwargs) -> Self:
         copy = deepcopy(self)
-        for k, v in kwargs.items():
-            setattr(copy, k, v)
-        yield copy
-        del copy
+        try:
+            for k, v in kwargs.items():
+                setattr(copy, k, v)
+            yield copy
+        except (ValueError, TypeError):
+            raise
+        finally:
+            del copy
