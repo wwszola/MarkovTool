@@ -18,7 +18,5 @@
 ## TODO
 - comment doc clean-up, ?import clean-up
 - advance steps, manual and ?fast
-- update txt_load for all parameters
 - create tests 
 - statistics example
-- ? run simulation (run states with different matrix) - saving state, use as a context manager
