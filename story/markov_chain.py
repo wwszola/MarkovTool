@@ -100,7 +100,7 @@ class MarkovChain(Iterator):
 
     def _verify_initial_state(self, value: int | List | np.ndarray) -> int | np.ndarray:
         if isinstance(value, (List, np.ndarray)):
-            if len(value) != self._dimension:
+            if len(value) != self._dimension and self._dimension > 0:
                 raise ValueError('Initial state dimension should be equal to the original dimension')
 
             if MarkovChain.normalize:
@@ -148,7 +148,7 @@ class MarkovChain(Iterator):
     def reset(self) -> None:
         self._step = 0
         self._state = self._pick_initial_state()
-        self._count[:] = 0
+        self._count = np.zeros(self._dimension, dtype=np.uint)
         self.my_seed = self.my_seed
 
     def __deepcopy__(self, memo: Dict) -> Self:
@@ -210,16 +210,16 @@ class MarkovChain(Iterator):
         return object
     
     @staticmethod
-    def from_array(matrix: np.ndarray, **kwargs) -> Self:
+    def from_array(matrix: np.ndarray, initial_state: np.ndarray, **kwargs) -> Self:
         object: MarkovChain = None
-        if matrix.ndim == 2 and matrix.shape[0] == matrix.shape[1]:
-            dim = matrix.shape[0]
-            try:                
-                object = MarkovChain(dim, **kwargs)
-                object.matrix = (matrix)
-            except ValueError as err:
-                print(f'Failed loading data from array')
-                print(err)
+        try:
+            object = MarkovChain(**kwargs)
+            object.matrix = matrix
+            object._dimension = object.matrix.shape[0]
+            object.initial_state = initial_state
+        except ValueError as err:
+            print(f'Failed loading data from array')
+            print(err)
         return object            
 
     @staticmethod
@@ -230,7 +230,7 @@ class MarkovChain(Iterator):
             initial_state = MarkovChain._static_rng.random(dimension)
             initial_state /= initial_state.sum()[np.newaxis]
             kwargs["initial_state"] = initial_state
-        return MarkovChain.from_array(matrix, **kwargs)
+        return MarkovChain.from_array(dimension=dimension, matrix=matrix, **kwargs)
 
     @contextmanager
     def simulation(self, **kwargs) -> Self:
