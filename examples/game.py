@@ -14,17 +14,21 @@ class Action(IntEnum):
 @dataclass
 class Card:
     action: Action
-    cost: int
     kwargs_: dict = field(default_factory=dict)
 
 @dataclass
 class Deck:
     cards: list = field(default_factory=list)
     used: list = field(default_factory=list, init=False)
+    size: int = field(init=False)
 
-    def shuffle(self):
-        self.cards = shuffle(self.cards + self.used)
+    def __post_init__(self):
+        self.size = len(self.cards)
+
+    def reshuffle(self):
+        self.cards = self.cards + self.used
         self.used = []
+        shuffle(self.cards)
 
 @dataclass
 class Player:
@@ -43,27 +47,33 @@ class Game:
         self.chain = MarkovChain.random(dimension, my_seed=seed, max_steps=100)
         self.players = [Player(f'Player #{i}') for i in range(players)]
         self.deck = Deck([
-            Card(Action.BET, cost = 0, kwargs_={"bets_num": 2}),
-            Card(Action.CLAIM, cost = 0)])
-        self.deck.shuffle()
+            Card(Action.BET, kwargs_={"bets_num": 2}),
+            Card(Action.CLAIM,)]*3)
+        self.deck.reshuffle()
 
-    def give_cards_to(self, player: Player, quantity: int = 1) -> None:
-        cards = self.deck.cards[0:quantity]
-        player.hand.append(*cards)
+    def give_cards_to(self, player: Player, num: int = 1) -> None:
+        cards = self.deck.cards[0: num]
+        player.hand.extend(cards)
+        del self.deck.cards[0: num]
     
-    def try_play_card(self, player: Player, card_index: int) -> bool:
-        if card_index < 0 or card_index >= len(player.hand):
-            return False
-
-        card = player.hand[card_index]        
-        if card.cost > player.money:
-            return False
-
-        player.money -= card.cost
+    def play_card(self, player: Player):
+        if len(player.hand) > 0:
+            self.output(msg = f'{player.name}, these are your cards:\n{player.hand}')
+            choice: int = self.get_input(prompt = f'Which one do you wish to play?', 
+                                        r = (0, len(player.hand)))
+            card = player.hand[choice]   
+            match card.action:
+                case Action.BET:
+                    self.play_bet(player, **card.kwargs_)
+                case Action.CLAIM:
+                    self.play_claim(player)
+            self.deck.used.append(player.hand.pop(choice))
+        else:
+            self.output(f'{player.name}, you have no cards.')
 
     def play_bet(self, player: Player, bets_num: int):
         choice: int = self.get_input(prompt = f'{player.name}, place your {bets_num} bets!', 
-                                     r = [0, self.dimension],
+                                     r = (0, self.dimension),
                                      num = bets_num)
 
         for state in choice:
@@ -72,16 +82,20 @@ class Game:
             else:
                 player.bets[state] = 1
 
+    def play_claim(self, player: Player):
+        player.has_claimed = True
+    
     def execute_claims(self, player: Player):
         if player.has_claimed:
             if self.chain.state in player.bets:
                 reward = player.bets[self.chain.state]
                 player.score += reward
                 del player.bets[self.chain.state]
-                player.has_claimed = False
-                self.output(f'{player.name}, you earned {reward} score points!')
+                self.output(f'{player.name}, you earned {reward} score points for betting on state {self.chain.state}!')
             else:
                 self.output(f'{player.name}, you get no reward this round.')
+            
+            player.has_claimed = False
 
     def get_input(self, prompt: str, r: tuple[int, int], num: int = 1) -> list | int:
         def verify(choice) -> int:
@@ -95,8 +109,8 @@ class Game:
         exit_loop = False
         while not exit_loop:
             try:
-                choices = input('> ').split(" ")
-                choices = map(verify, choices)
+                choices = input('> ').strip().split(" ")
+                choices = [verify(choice) for choice in choices]
                 result.extend(choices)
             except ValueError:
                 print(f'Your choices should be integer in range {r[0]} to {r[1]}')
@@ -111,16 +125,28 @@ class Game:
         print(msg)
 
     def run(self):
+        for p in self.players: self.give_cards_to(p, 2)
+
+        history = []
         for state in self.chain:
+            history.append(state)
+            print(state, self.chain.state)
             for p in self.players: self.execute_claims(p)
-            self.output(f'State is now {state}.')
-            for p in self.players:
-                action = self.get_input(f'{p.name}, what do you do?', r = (2, 4))
-                if action == Action.BET:
-                    self.play_bet(p, 2)
-                elif action == Action.CLAIM:
-                    p.has_claimed = True
-            print(self.players[0])
+
+            self.output(f'This is the tape from your machine:\n{history}')
+            for p in self.players: self.output(f'{p.name} has {p.score} points and bets as such {p.bets}')
+
+            for p in self.players: self.play_card(p)
+            
+            if len(self.deck.used) == self.deck.size:
+                self.deck.reshuffle()
+                for p in self.players: self.give_cards_to(p, 2)
+            else:
+                for p in self.players: self.give_cards_to(p, 1)
+            
+            # print(self.players[0])
+        for p in self.players: self.output(f'{p.name} has {p.score} points.')
+
             
 if __name__ == "__main__":
     game = Game()
