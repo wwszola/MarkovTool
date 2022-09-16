@@ -31,6 +31,7 @@ class MarkovChain(Iterator):
         self.matrix = matrix
         self.initial_state = initial_state
         self._state: int = self._pick_initial_state()
+        self._old_state: int
 
         self._step: int = 0
         self._iter_step: int = 0
@@ -68,7 +69,7 @@ class MarkovChain(Iterator):
 
     @property
     def state(self) -> int:
-        return self._state
+        return self._old_state
 
     @property
     def max_steps(self) -> int:
@@ -142,11 +143,11 @@ class MarkovChain(Iterator):
 
     def __next__(self) -> int:
         if self._step < self._iter_step + self.max_steps:
-            old: int = self._state
-            self._count[old] += 1
+            self._old_state = self._state
+            self._count[self._old_state] += 1
             self._state = self._pick_next_state()
             self._step += 1
-            return old
+            return self._old_state
         else:
             raise StopIteration
     
