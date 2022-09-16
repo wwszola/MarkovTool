@@ -38,6 +38,7 @@ deactivate
 - Setting `my_seed` creates identical process, but unique for every first state
 
 ## TODO
+- state translator( a dict ?)
 - comment doc clean-up, ?import clean-up
 - advance steps, manual and ?fast
 - create tests 
