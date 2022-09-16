@@ -20,7 +20,6 @@ python examples/example1.py
 ```
 deactivate
 ```
-## Project currently includes:
 ### `MarkovChain` implementation:
 - Static methods `txt_load`, `from_array`, `random` for creating `MarkovChain` objects
 - `MarkovChain` inherits from `Iterator`, so use it as you wish :)
@@ -36,6 +35,9 @@ deactivate
 ### Setting seed
 - Calling static method `reset_static_rng` generates identical `matrix` (in `random`) and first `_state`
 - Setting `my_seed` creates identical process, but unique for every first state
+
+### A game?
+- example `examples/game.py` presents simple game where you bet and claim rewards for guessing the state
 
 ## TODO
 - state translator( a dict ?)
