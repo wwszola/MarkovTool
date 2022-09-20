@@ -1,7 +1,7 @@
 from distutils.core import setup
 
-setup(name='story',
+setup(name='MarkovTool',
       version='0.1',
       author='Wojciech Wszola',
-      url='https://www.github.com/wwszola/interactive_story',
-      packages=['story'])
+      url='https://www.github.com/wwszola/MarkovTool',
+      packages=['src'])
