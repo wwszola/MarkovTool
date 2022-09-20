@@ -40,7 +40,7 @@ deactivate
 - example `examples/game.py` presents simple game where you bet and claim rewards for guessing the state
 
 ## TODO
-- state translator( a dict ?)
+- parallel iterator yes
 - comment doc clean-up, ?import clean-up
 - advance steps, manual and ?fast
 - create tests 
