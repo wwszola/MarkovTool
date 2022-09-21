@@ -8,7 +8,7 @@ from .description import Description
 
 @dataclass
 class Endless:
-    __description: Description
+    _description: Description
     _state: int = field(default = -1, init = False)
     _old_state: int = field(default = -1, init = False)
     _step: int = field(default = 0, init = False)
@@ -20,13 +20,13 @@ class Endless:
 
     @state.setter 
     def state(self, value: int) -> None:
-        if value >= 0 and value < self.__description.dimension:
+        if value >= 0 and value < self._description.dimension:
             self._state = value
         else:
-            raise ValueError(f'State should be int in range [0, {self.__description._dimension})')
+            raise ValueError(f'State should be int in range [0, {self._description._dimension})')
 
     def __post_init__(self):
-        self._state_rng = default_rng(self.__description.my_seed)
+        self._state_rng = default_rng(self._description.my_seed)
         self.state = self._pick_initial_state()
 
     def __deepcopy__(self, memo: dict):
@@ -37,20 +37,20 @@ class Endless:
         return result
 
     def _pick_initial_state(self) -> int:
-        if isinstance(self.__description._initial_state, ndarray):
+        if isinstance(self._description._initial_state, ndarray):
             rng = default_rng(None)
             pick: float = rng.random()
-            accumulated = cumsum(self.__description._initial_state)
+            accumulated = cumsum(self._description._initial_state)
             for i, value in enumerate(accumulated):
                 if pick < value:
                     return i
             else: raise ValueError('pick is higher than the last element of accumulated')    
         else:
-            return self.__description._initial_state
+            return self._description._initial_state
 
     def _pick_next_state(self) -> int:
         pick: float = self._state_rng.random()
-        accumulated = cumsum(self.__description._matrix[self._state])
+        accumulated = cumsum(self._description._matrix[self._state])
         for i, value in enumerate(accumulated):
             if pick < value:
                 return i
