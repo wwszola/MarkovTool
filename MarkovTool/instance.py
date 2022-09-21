@@ -2,18 +2,18 @@ from dataclasses import dataclass, field
 from numpy import ndarray, cumsum
 from numpy.random import Generator, default_rng
 
-from description import Description
+from .description import Description
 
 @dataclass
 class Endless:
     __description: Description
-    _state: int = field(-1, init=False)
-    _old_state: int = field(-1, init=False)
-    _step: int = field(0, init=False)
-    _state_rng: Generator = field(None, init=False)
+    _state: int = field(default = -1, init = False)
+    _old_state: int = field(default = -1, init = False)
+    _step: int = field(default = 0, init = False)
+    _state_rng: Generator = field(default = None, init=False)
 
     def __post_init__(self):
-        self.state = self._pick_initial_state()
+        self._state = self._pick_initial_state()
         self._state_rng = default_rng(self.__description.my_seed)
 
     @property
@@ -29,7 +29,7 @@ class Endless:
                     return i
             else: raise ValueError('pick is higher than the last element of accumulated')    
         else:
-            return self._initial_state
+            return self.__description._initial_state
 
     def _pick_next_state(self) -> int:
         pick: float = self._state_rng.random()

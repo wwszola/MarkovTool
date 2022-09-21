@@ -6,8 +6,8 @@ from copy import copy
 class Description:
     _dimension: int
     _my_seed: int = None
-    _matrix: ndarray = field(None, init = False)
-    _initial_state: int | ndarray = field(None, init = False)
+    _matrix: ndarray = field(default = None, init = False)
+    _initial_state: int | ndarray = field(default = None, init = False)
 
     @property
     def my_seed(self) -> int:
@@ -26,7 +26,7 @@ class Description:
         if matrix is not None:
             self._matrix = self._verify_matrix(matrix)
 
-    def _verify_stochastic_matrix(self, value: list[list[float]] | ndarray) -> ndarray:
+    def _verify_matrix(self, value: list[list[float]] | ndarray) -> ndarray:
         value = array(value, dtype=float32)
         if len(value.shape) != 2 or value.shape[0] != value.shape[1]:
             raise ValueError('Matrix should be an array NxN in size')
