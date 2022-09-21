@@ -1,3 +1,7 @@
+# __MAIN BRANCH IS NOT WORKING__
+# __develompent ongoing in branch refactor__
+# __it'll be a few days to get working__
+
 ## How to use in a virtual environment
 1. Clone the project
 ```
