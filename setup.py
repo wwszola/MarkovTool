@@ -4,4 +4,4 @@ setup(name='MarkovTool',
       version='0.1',
       author='Wojciech Wszola',
       url='https://www.github.com/wwszola/MarkovTool',
-      packages=['src'])
+      packages=['MarkovTool'])
