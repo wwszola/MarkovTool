@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from copy import deepcopy
 from numpy import ndarray, cumsum
 from numpy.random import Generator, default_rng
+from itertools import islice
 
 from .description import Description
 
@@ -13,19 +14,20 @@ class Endless:
     _step: int = field(default = 0, init = False)
     _state_rng: Generator = field(default = None, init=False)
 
-    def __post_init__(self):
-        self._state_rng = default_rng(self.__description.my_seed)
-        self._state = self._pick_initial_state()
-
     @property
     def state(self) -> int:
         return self._old_state
-        
-    def force_state(self, value: int) -> None:
+
+    @state.setter 
+    def state(self, value: int) -> None:
         if value >= 0 and value < self.__description.dimension:
             self._state = value
         else:
             raise ValueError(f'State should be int in range [0, {self.__description._dimension})')
+
+    def __post_init__(self):
+        self._state_rng = default_rng(self.__description.my_seed)
+        self.state = self._pick_initial_state()
 
     def __deepcopy__(self, memo: dict):
         result = Endless.__new__(Endless)
@@ -62,3 +64,10 @@ class Endless:
         self._state = self._pick_next_state()
         self._step += 1
         return self._old_state
+
+    def take(self, n: int) -> list:
+        return list(islice(self, n))
+
+    def skip(self, n: int) -> None:
+        next(islice(self, n, n), None)
+        
