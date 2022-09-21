@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from numpy import array, ndarray, float32, allclose
+from numpy import array, ndarray, float32, allclose, newaxis
 from copy import copy
 
 @dataclass
@@ -15,7 +15,6 @@ class Description:
 
     @my_seed.setter
     def my_seed(self, value: int) -> None:
-        # self._state_rng = Generator(PCG64(value))
         self._my_seed = value
 
     @property
@@ -34,8 +33,7 @@ class Description:
         if value.shape[0] != self._dimension:
             raise ValueError('Matrix dimension should be equal to the original dimension')
         
-        # if MarkovChain.normalize:
-        #     value /= np.sum(value, 1)[:, np.newaxis]
+        value /= value.sum(1)[:, newaxis]
 
         if not allclose(value.sum(1), 1.0):
             raise ValueError('Matrix should be a right-stochastic matrix')
@@ -55,13 +53,12 @@ class Description:
             if len(value) != self._dimension:
                 raise ValueError('Initial state dimension should be equal to the original dimension')
 
-            # if MarkovChain.normalize:
-            #     value /= np.sum(value)[np.newaxis]                
+            value /= value.sum()[newaxis]         
 
             if allclose(value.sum(), 1.0):
                 return array(value, dtype = float32)
             else:
-                raise ValueError('Initial state probabilities sum should be equal to 1.0')
+                raise ValueError('Initial state probabilities should normalize to sum 1.0')
         
         elif isinstance(value, int):
             if value < 0 or value >= self._dimension:

@@ -40,13 +40,17 @@ deactivate
 - example `examples/game.py` presents simple game where you bet and claim rewards for guessing the state
 
 ## TODO
-- split chain into description(matrix, initial_state, seed) and state(step, where to end, rngs)
+### refactor branch
+- does initial_state needs its own rng?
+- description
+- instance
 - BaseState -> (Endless, Parallel)
 - create series of iterators:
 - - single endless (or max_steps)
 - - multiple parallel (for different or not descriptions)
-- you get to preserve the state
-- how to advance
+#### different from main:
+- MarkovChain split into Description and Instance
+- get rid of normalize flag - always normalizing now
 ---
 - create tests 
 - comment doc clean-up, ?import clean-up
