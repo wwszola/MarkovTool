@@ -4,11 +4,11 @@ from numpy import ndarray, cumsum
 from numpy.random import Generator, default_rng
 from itertools import islice
 
-from .description import Description
+from .description import Description, Variation
 
 @dataclass
 class Endless:
-    _description: Description
+    _description: Description | Variation
     _state: int = field(default = -1, init = False)
     _old_state: int = field(default = -1, init = False)
     _step: int = field(default = 0, init = False)
@@ -23,7 +23,7 @@ class Endless:
         if value >= 0 and value < self._description.dimension:
             self._state = value
         else:
-            raise ValueError(f'State should be int in range [0, {self._description._dimension})')
+            raise ValueError(f'State should be int in range [0, {self._description.dimension})')
 
     def __post_init__(self):
         self._state_rng = default_rng(self._description.my_seed)
@@ -37,20 +37,20 @@ class Endless:
         return result
 
     def _pick_initial_state(self) -> int:
-        if isinstance(self._description._initial_state, ndarray):
+        if isinstance(self._description.initial_state, ndarray):
             rng = default_rng(None)
             pick: float = rng.random()
-            accumulated = cumsum(self._description._initial_state)
+            accumulated = cumsum(self._description.initial_state)
             for i, value in enumerate(accumulated):
                 if pick < value:
                     return i
             else: raise ValueError('pick is higher than the last element of accumulated')    
         else:
-            return self._description._initial_state
+            return self._description.initial_state
 
     def _pick_next_state(self) -> int:
         pick: float = self._state_rng.random()
-        accumulated = cumsum(self._description._matrix[self._state])
+        accumulated = cumsum(self._description.matrix[self._state])
         for i, value in enumerate(accumulated):
             if pick < value:
                 return i

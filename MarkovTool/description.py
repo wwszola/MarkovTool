@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from numpy import array, ndarray, float32, allclose, newaxis
 from numpy.random import Generator, default_rng
 from copy import copy
@@ -38,7 +38,7 @@ class Description:
         value = array(value, dtype=float32)
         if len(value.shape) != 2 or value.shape[0] != value.shape[1]:
             raise ValueError('Matrix should be an array NxN in size')
-            
+
         if self._dimension is not None and value.shape[0] != self._dimension:
             raise ValueError('Matrix dimension should be equal to the original dimension')
         
@@ -98,3 +98,26 @@ class Description:
         object = Description.from_array(matrix, initial_state)
         object.my_seed = seed_
         return object
+
+@dataclass
+class Variation:
+    _parent: Description = field(default = None)
+    _changes: dict = field(default_factory = dict)
+
+    def __setattr__(self, __name: str, __value):
+        try:
+            super().__setattr__(__name, __value)
+        except AttributeError:
+            self._changes[__name] = __value
+
+    def __getattribute__(self, __name: str):
+        result = None
+        try:
+            result = super().__getattribute__(__name)
+        except AttributeError:
+            if __name in self._changes:
+                result = self._changes[__name]
+            else:
+                result = self._parent.__getattribute__(__name)
+        finally:
+            return result
