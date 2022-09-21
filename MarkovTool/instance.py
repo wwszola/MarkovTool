@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from copy import deepcopy
 from numpy import ndarray, cumsum
 from numpy.random import Generator, default_rng
 
@@ -19,10 +20,24 @@ class Endless:
     @property
     def state(self) -> int:
         return self._old_state
+        
+    def force_state(self, value: int) -> None:
+        if value >= 0 and value < self.__description.dimension:
+            self._state = value
+        else:
+            raise ValueError(f'State should be int in range [0, {self.__description._dimension})')
+
+    def __deepcopy__(self, memo: dict):
+        result = Endless.__new__(Endless)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            setattr(result, k, deepcopy(v, memo))
+        return result
 
     def _pick_initial_state(self) -> int:
         if isinstance(self.__description._initial_state, ndarray):
-            pick: float = self._state_rng.random()
+            rng = default_rng(None)
+            pick: float = rng.random()
             accumulated = cumsum(self.__description._initial_state)
             for i, value in enumerate(accumulated):
                 if pick < value:
