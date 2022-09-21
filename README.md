@@ -40,8 +40,14 @@ deactivate
 - example `examples/game.py` presents simple game where you bet and claim rewards for guessing the state
 
 ## TODO
-- parallel iterator yes
-- comment doc clean-up, ?import clean-up
-- advance steps, manual and ?fast
+- split chain into description(matrix, initial_state, seed) and state(step, where to end, rngs)
+- BaseState -> (Endless, Parallel)
+- create series of iterators:
+- - single endless (or max_steps)
+- - multiple parallel (for different or not descriptions)
+- you get to preserve the state
+- how to advance
+---
 - create tests 
+- comment doc clean-up, ?import clean-up
 - statistics example
