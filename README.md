@@ -49,8 +49,8 @@ deactivate
 - - single endless (or max_steps)
 - - multiple parallel (for different or not descriptions)
 #### different from main:
-- MarkovChain split into Description and Instance
-- get rid of normalize flag - always normalizing now
+- markovchain split into description and instance
+- got rid of normalize flag - always normalizing now
 ---
 - create tests 
 - comment doc clean-up, ?import clean-up

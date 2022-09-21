@@ -5,7 +5,7 @@ from numpy.random import Generator, default_rng
 from description import Description
 
 @dataclass
-class BaseInstance:
+class Endless:
     __description: Description
     _state: int = field(-1, init=False)
     _old_state: int = field(-1, init=False)
@@ -38,3 +38,12 @@ class BaseInstance:
             if pick < value:
                 return i
         else: raise ValueError('pick is higher than the last element of accumulated')
+    
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> int:
+        self._old_state = self._state
+        self._state = self._pick_next_state()
+        self._step += 1
+        return self._old_state
