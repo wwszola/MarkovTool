@@ -13,8 +13,8 @@ class Endless:
     _state_rng: Generator = field(default = None, init=False)
 
     def __post_init__(self):
-        self._state = self._pick_initial_state()
         self._state_rng = default_rng(self.__description.my_seed)
+        self._state = self._pick_initial_state()
 
     @property
     def state(self) -> int:

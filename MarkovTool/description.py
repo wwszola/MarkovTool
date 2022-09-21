@@ -1,13 +1,21 @@
 from dataclasses import dataclass, field
 from numpy import array, ndarray, float32, allclose, newaxis
+from numpy.random import Generator, default_rng
 from copy import copy
 
 @dataclass
 class Description:
-    _dimension: int
+    _dimension: int = None
     _my_seed: int = None
     _matrix: ndarray = field(default = None, init = False)
     _initial_state: int | ndarray = field(default = None, init = False)
+
+    @property
+    def dimension(self) -> int:
+        if self._dimension is not None:
+            return self._dimension
+        else:
+            raise ValueError('Dimension isn\'t defined yet')
 
     @property
     def my_seed(self) -> int:
@@ -30,7 +38,8 @@ class Description:
         value = array(value, dtype=float32)
         if len(value.shape) != 2 or value.shape[0] != value.shape[1]:
             raise ValueError('Matrix should be an array NxN in size')
-        if value.shape[0] != self._dimension:
+            
+        if self._dimension is not None and value.shape[0] != self._dimension:
             raise ValueError('Matrix dimension should be equal to the original dimension')
         
         value /= value.sum(1)[:, newaxis]
@@ -67,3 +76,25 @@ class Description:
                 return value
         else:
             raise TypeError('Initial state should be the type of either int, list or numpy.ndarray')
+
+    @staticmethod
+    def from_array(matrix: ndarray, initial_state: ndarray):
+        object: Description = None
+        try:
+            object = Description()
+            object.matrix = matrix
+            object._dimension = object.matrix.shape[0]
+            object.initial_state = initial_state
+        except ValueError as err:
+            print(f'Failed loading data from an array')
+            print(err)
+        return object   
+
+    @staticmethod
+    def random(dimension: int, seed_: int = None):
+        rng = default_rng(seed_)
+        matrix = rng.random((dimension, dimension))
+        initial_state = rng.random(dimension)
+        object = Description.from_array(matrix, initial_state)
+        object.my_seed = seed_
+        return object
