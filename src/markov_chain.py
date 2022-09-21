@@ -41,8 +41,6 @@ class MarkovChain(Iterator):
         self.my_seed = my_seed
         self.iter_reset: bool = iter_reset
 
-        self._count = np.zeros(dimension, dtype=np.int32)
-
     @property
     def matrix(self) -> np.ndarray:
         return copy(self._stochastic_matrix)
@@ -125,16 +123,6 @@ class MarkovChain(Iterator):
         else:
             raise TypeError('Initial state should be the type either int, List, numpy.ndarray')
                 
-    @property
-    def count(self) -> np.ndarray:
-        '''Histogram normalized to sum=1.0 
-        '''
-        sum = np.sum(self._count)
-        if sum == 0:
-            return np.zeros_like(self._count)
-        else:
-            return self._count/np.sum(self._count)
-
     def __iter__(self) -> Self:
         if self._iter_reset:
             self.reset()
@@ -144,7 +132,6 @@ class MarkovChain(Iterator):
     def __next__(self) -> int:
         if self._step < self._iter_step + self.max_steps:
             self._old_state = self._state
-            self._count[self._old_state] += 1
             self._state = self._pick_next_state()
             self._step += 1
             return self._old_state
@@ -154,7 +141,6 @@ class MarkovChain(Iterator):
     def reset(self) -> None:
         self._step = 0
         self._state = self._pick_initial_state()
-        self._count = np.zeros(self._dimension, dtype=np.uint)
         self.my_seed = self.my_seed
 
     def __deepcopy__(self, memo: Dict) -> Self:
