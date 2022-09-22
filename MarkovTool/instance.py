@@ -1,16 +1,16 @@
 from dataclasses import dataclass, field
-from copy import deepcopy
+from copy import deepcopy, copy
 from typing import Callable
 from typing_extensions import Self
 from numpy import ndarray, cumsum
 from numpy.random import Generator, default_rng
 from itertools import islice
 
-from .description import Description, Variation
+from .description import Description
 
 @dataclass()
 class Endless:
-    _description: Description | Variation
+    _description: Description 
     _state: int = field(default = -1, init = False)
     _old_state: int = field(default = -1, init = False)
     _step: int = field(default = 0, init = False)
@@ -35,7 +35,11 @@ class Endless:
         result = Endless.__new__(Endless)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
-            setattr(result, k, deepcopy(v, memo))
+            match k:
+                case "_description":
+                    setattr(result, k, v)
+                case _:
+                    setattr(result, k, deepcopy(v, memo))
         return result
 
     def _pick_initial_state(self) -> int:
@@ -56,7 +60,9 @@ class Endless:
         for i, value in enumerate(accumulated):
             if pick < value:
                 return i
-        else: raise ValueError('pick is higher than the last element of accumulated')
+        else: 
+            print(pick ,accumulated)
+            raise ValueError('pick is higher than the last element of accumulated')
 
     def __iter__(self) -> Self:
         return self
@@ -72,6 +78,18 @@ class Endless:
 
     def skip(self, n: int) -> None:
         next(islice(self, n, n), None)
+
+    def branch(self, **kwargs) -> Self:
+        new = copy(self)
+        new._state_rng = deepcopy(self._state_rng)
+        if '_state' in kwargs:
+            new.state = kwargs['_state']
+            del kwargs['_state']
+        if kwargs:
+            new._description = copy(self._description)
+            for k, v in kwargs.items():
+                setattr(new._description, k, v)
+        return new 
 
 @dataclass
 class Finite(Endless):

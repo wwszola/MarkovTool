@@ -1,2 +1,2 @@
-from .description import Description, Variation
+from .description import Description
 from .instance import Endless, Finite

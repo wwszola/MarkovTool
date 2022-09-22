@@ -2,6 +2,7 @@ from dataclasses import dataclass, field, asdict
 from numpy import array, ndarray, float32, allclose, newaxis
 from numpy.random import Generator, default_rng
 from copy import copy
+from typing_extensions import Self
 
 @dataclass
 class Description:
@@ -30,9 +31,9 @@ class Description:
         return copy(self._matrix)
 
     @matrix.setter
-    def matrix(self, matrix: ndarray) -> None:
-        if matrix is not None:
-            self._matrix = self._verify_matrix(matrix)
+    def matrix(self, value: ndarray) -> None:
+        if value is not None:
+            self._matrix = self._verify_matrix(value)
 
     def _verify_matrix(self, value: list[list[float]] | ndarray) -> ndarray:
         value = array(value, dtype=float32)
@@ -77,8 +78,15 @@ class Description:
         else:
             raise TypeError('Initial state should be the type of either int, list or numpy.ndarray')
 
+    def variant(self, **kwargs) -> Self:
+        result = copy(self)
+        for name, value in kwargs.items():
+            if hasattr(result, name):
+                setattr(result, name, value)
+        return result
+
     @staticmethod
-    def from_array(matrix: ndarray, initial_state: ndarray):
+    def from_array(matrix: ndarray, initial_state: ndarray) -> Self:
         object: Description = None
         try:
             object = Description()
@@ -91,33 +99,10 @@ class Description:
         return object   
 
     @staticmethod
-    def random(dimension: int, seed_: int = None):
+    def random(dimension: int, seed_: int = None) -> Self:
         rng = default_rng(seed_)
         matrix = rng.random((dimension, dimension))
         initial_state = rng.random(dimension)
         object = Description.from_array(matrix, initial_state)
         object.my_seed = seed_
         return object
-
-@dataclass
-class Variation:
-    _parent: Description = field(default = None)
-    _changes: dict = field(default_factory = dict)
-
-    def __setattr__(self, __name: str, __value):
-        try:
-            super().__setattr__(__name, __value)
-        except AttributeError:
-            self._changes[__name] = __value
-
-    def __getattribute__(self, __name: str):
-        result = None
-        try:
-            result = super().__getattribute__(__name)
-        except AttributeError:
-            if __name in self._changes:
-                result = self._changes[__name]
-            else:
-                result = self._parent.__getattribute__(__name)
-        finally:
-            return result
