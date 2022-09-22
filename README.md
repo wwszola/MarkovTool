@@ -13,39 +13,116 @@ cd interactive_story
 python -m venv venv
 ./venv/Scripts/activate
 
-python install -r requirements.txt
+pip install -r requirements.txt
 python setup.py install
 ```
 3. Run some examples
 ```
-python examples/example1.py
+python examples/example2.py
 ```
 4. Deactivate the virtual environment after use
 ```
 deactivate
 ```
-### `MarkovChain` implementation:
-- Static methods `txt_load`, `from_array`, `random` for creating `MarkovChain` objects
-- `MarkovChain` inherits from `Iterator`, so use it as you wish :)
-- `matrix: np.ndarray` needs to be a [Markov matrix](https://en.wikipedia.org/wiki/Stochastic_matrix)
-- call `print(MarkovChain.random(3).run(record=True))` to generate your first process
-### Reusing `MarkovChain`
-- setting `iter_reset = True` resets `step`, generates first state, seeds `_state_rng`, clears `count`
-- in order to extend or merge processes set `iter_reset = False`, and adjust desired properites
-- call `reset` after `iter_reset = False` to discard the previous process
-### Initial state
-- Setting `initial_state` with a 1-D `list | np.ndarray` of probabilities allows to randomly choose the first state; uses `_static_rng` as the generator
-- Setting with an `int` makes sure this is always your first state
-### Setting seed
-- Calling static method `reset_static_rng` generates identical `matrix` (in `random`) and first `_state`
-- Setting `my_seed` creates identical process, but unique for every first state
+
+## Get started
+### First run
+```
+from MarkovTool import Description, Endless
+process = Description.random(3)
+
+print(Endless(process).take(10))
+```
+```
+[0, 0, 2, 2, 0, 1, 1, 1, 1, 2]
+```
+Static method `random`, given the dimension, generates values for Markov matrix and initial probability vector. Constructor `Endless` creates a new running instance. We generate first 10 states and print them to the terminal.
+
+### Stay on the path
+```
+for _ in range(3): 
+    print(Endless(process).take(10))
+```
+```
+[2, 2, 2, 0, 1, 0, 1, 0, 2, 0]
+[2, 0, 1, 0, 2, 0, 2, 0, 1, 0]
+[0, 1, 2, 0, 2, 2, 0, 2, 0, 2]
+```
+The same description generates different processes. That happens because `my_seed` property of `Description` defaults to `None`, generating unique RNGs.
+Set this property to make sure the process behaves in repeatable manner.
+```
+process.my_seed = 0
+for _ in range(3): 
+    print(Endless(process).take(10))
+```
+```
+[2, 2, 0, 0, 0, 2, 2, 2, 2, 2]
+[0, 2, 0, 0, 0, 2, 2, 2, 2, 2]
+[1, 2, 0, 0, 0, 2, 2, 2, 2, 2]
+```
+To ensure the first state is always the same set `initial_state` to an `int` value.
+```
+process.initial_state = 1
+for _ in range(3): 
+    print(Endless(d).take(10))
+```
+```
+[1, 2, 0, 0, 0, 2, 2, 2, 2, 2]
+[1, 2, 0, 0, 0, 2, 2, 2, 2, 2]
+[1, 2, 0, 0, 0, 2, 2, 2, 2, 2]
+```
+See also `Description.random`, `Endless.skip`
+
+### Manipulation
+```
+process = Description.random(2)
+process.initial_state = 0
+p_mat = process.matrix
+# removing transition from state 1 to state 0 entirely 
+p_mat[1, 0] = 0.0
+variation = process.variant(matrix = p_mat)
+print(Endless(process).take(10))
+print(Endless(variation).take(10))
+```
+```
+[0, 0, 1, 1, 0, 1, 1, 0, 0, 1]
+[0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+```
+Call method `variant` to create a copy of the description. Pass properties you wish to change as keyword arguments.
+
+### Parallel worlds
+You may run instances with different properties while keeping others to create complex behaviour. First, generate 5 steps from `Endless` instance.
+```
+process = Description.random(7)
+process.my_seed = 17
+instance = Endless(process)
+print(instance.take(5))
+print(instance.branch(_state=4).take(10))
+print(instance.take(10))
+```
+```
+[4, 6, 1, 5, 3]
+```
+Next, run second unique process, which has `_state` set to 4, by calling `branch`. Both of them eventually converges to the same output. Underlying RNGs produces the same numbers at the same steps, but only given the same previous state.
+```
+print(instance.branch(_state=4).take(10))
+print(instance.take(10))
+```
+```
+[4, 1, 4, 5, 5, 0, 2, 4, 0, 6]
+[1, 3, 2, 4, 5, 0, 2, 4, 0, 6]
+```
 
 ### A game?
+__HAS NOT BEEN REFACTORED YET__
 - example `examples/game.py` presents simple game where you bet and claim rewards for guessing the state
 
+## Notes
+- parallel is itertools.zip_longest??
+- just use itertools to get the result you want
 ## TODO
-- parallel iterator yes
+- load from file: we want json
+- refactor game example
+- create tests and make sure every setter checks its stuff, no invalid values are present
 - comment doc clean-up, ?import clean-up
-- advance steps, manual and ?fast
-- create tests 
-- statistics example
+- stat module: history, count, ...
