@@ -1,7 +1,3 @@
-# __MAIN BRANCH IS NOT WORKING__
-# __develompent ongoing in branch refactor__
-# __it'll be a few days to get working__
-
 ## How to use in a virtual environment
 1. Clone the project
 ```
@@ -121,8 +117,9 @@ __HAS NOT BEEN REFACTORED YET__
 - parallel is itertools.zip_longest??
 - just use itertools to get the result you want
 ## TODO
-- load from file: we want json
 - refactor game example
-- create tests and make sure every setter checks its stuff, no invalid values are present
+- util module
 - comment doc clean-up, ?import clean-up
+- load from file: we want json
+- create tests and make sure every setter checks its stuff, no invalid values are present
 - stat module: history, count, ...
