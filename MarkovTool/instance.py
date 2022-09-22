@@ -31,7 +31,7 @@ class Endless:
         self._state_rng = default_rng(self._description.my_seed)
         self.state = self._pick_initial_state()
 
-    def __deepcopy__(self, memo: dict):
+    def __deepcopy__(self, memo: dict) -> Self:
         result = Endless.__new__(Endless)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
