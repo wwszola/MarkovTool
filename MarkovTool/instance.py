@@ -1,18 +1,20 @@
 from dataclasses import dataclass, field
 from copy import deepcopy
+from typing import Callable
+from typing_extensions import Self
 from numpy import ndarray, cumsum
 from numpy.random import Generator, default_rng
 from itertools import islice
 
 from .description import Description, Variation
 
-@dataclass
+@dataclass()
 class Endless:
     _description: Description | Variation
     _state: int = field(default = -1, init = False)
     _old_state: int = field(default = -1, init = False)
     _step: int = field(default = 0, init = False)
-    _state_rng: Generator = field(default = None, init=False)
+    _state_rng: Generator = field(default = None, init = False)
 
     @property
     def state(self) -> int:
@@ -55,8 +57,8 @@ class Endless:
             if pick < value:
                 return i
         else: raise ValueError('pick is higher than the last element of accumulated')
-    
-    def __iter__(self):
+
+    def __iter__(self) -> Self:
         return self
 
     def __next__(self) -> int:
@@ -70,4 +72,17 @@ class Endless:
 
     def skip(self, n: int) -> None:
         next(islice(self, n, n), None)
-        
+
+@dataclass
+class Finite(Endless):
+    _stop_predicate: Callable[[Self], bool] = field(
+        default = lambda self: False,
+        init = True)
+
+    def __iter__(self) -> Self:
+        return self
+
+    def __next__(self) -> int:
+        if self._stop_predicate(self):
+            raise StopIteration
+        return super().__next__()
