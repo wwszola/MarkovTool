@@ -22,16 +22,19 @@ class Collector:
     def close(self):
         self._is_open = False
 
-    def put(self, d: Description, step: int, state: int) -> None:
+    def put(self, d: Description, id: int, step: int, state: int) -> None:
         if d not in self._entries:
-            self._entries[d] = {}
-        
-        for (step_, state_), chunk in self._entries[d].items():
-            if step_ + len(chunk) == step:
-                chunk.append(state)
+            self._entries[d] = dict()
+
+        for (id_, step_), chunk in self._entries[d].items():
+            if id == id_:            
+                if step_ + len(chunk) == step:
+                    chunk.append(state)
+                    break
+            elif step_ <= step < step_ + len(chunk) and chunk[step - step_] == state:
                 break
         else:
-            self._entries[d][(step, state)] = [state]
+            self._entries[d][(id, step)] = [state]
 
     def count(self) -> ndarray: 
         return bincount(self._history)

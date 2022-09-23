@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from copy import deepcopy, copy
-from typing import Callable
+from typing import Callable, Iterable
 from typing_extensions import Self
 from numpy import ndarray, cumsum
 from numpy.random import Generator, default_rng
@@ -9,15 +9,19 @@ from itertools import islice
 from .description import Description
 from .stat import Collector
 
-@dataclass()
-class Endless:
-    _description: Description 
-    _state: int = field(default = -1, init = False)
-    _old_state: int = field(default = -1, init = False)
-    _step: int = field(default = 0, init = False)
-    _state_rng: Generator = field(default = None, init = False)
+class Endless(Iterable):
+    _count = 0
+    def __init__(self, description: Description) -> None:
+        self._description = description
+        self.state: int = self._pick_initial_state()
+        self._old_state: int = -1
+        self._step: int = 0
+        self._state_rng: Generator = default_rng(self._description.my_seed)
     
-    _collectors: set[Collector] = field(default_factory = set, init = False)
+        self._collectors: set[Collector] = set()
+
+        self._id = Endless._count
+        Endless._count += 1
 
     @property
     def state(self) -> int:
@@ -29,10 +33,6 @@ class Endless:
             self._state = value
         else:
             raise ValueError(f'State should be int in range [0, {self._description.dimension})')
-
-    def __post_init__(self):
-        self._state_rng = default_rng(self._description.my_seed)
-        self.state = self._pick_initial_state()
 
     def __eq__(self, other: Self) -> bool:
         return self._description == other._description \
@@ -62,7 +62,7 @@ class Endless:
         else:
             for collector in self._collectors:
                 if collector._is_open:
-                    collector.put(self._description, step, state)
+                    collector.put(self._description, self._id, step, state)
 
     def _pick_initial_state(self) -> int:
         if isinstance(self._description.initial_state, ndarray):
@@ -96,14 +96,22 @@ class Endless:
         self._step += 1
         return self._old_state
 
-    def take(self, n: int) -> list:
-        return list(islice(self, n))
+    def take(self, n: int = None) -> list:
+        if n is None:
+            return list(self)
+        else:
+            return list(islice(self, n))
 
-    def skip(self, n: int) -> None:
-        next(islice(self, n, n), None)
+    def skip(self, n: int = None) -> None:
+        if n is None:
+            for _ in self: pass
+        else:
+            next(islice(self, n, n), None)
 
     def branch(self, **kwargs) -> Self:
         new = copy(self)
+        new._id = Endless._count
+        Endless._count += 1
         new._state_rng = deepcopy(self._state_rng)
         if '_state' in kwargs:
             new.state = kwargs['_state']
@@ -114,12 +122,12 @@ class Endless:
                 setattr(new._description, k, v)
         return new 
 
-@dataclass
 class Finite(Endless):
-    _stop_predicate: Callable[[Self], bool] = field(
-        default = lambda self: False,
-        init = True)
-
+    def __init__(self, description: Description,
+                 stop_predicate: Callable[[Self], bool] = lambda self: False):
+        super().__init__(description)
+        self._stop_predicate = stop_predicate
+            
     def __iter__(self) -> Self:
         return self
 
