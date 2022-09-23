@@ -77,7 +77,13 @@ class Description:
                 return value
         else:
             raise TypeError('Initial state should be the type of either int, list or numpy.ndarray')
-
+    
+    def __hash__(self) -> int:
+        return hash((self._dimension, 
+                     self.my_seed, 
+                     tuple(self.matrix.flatten()), 
+                     tuple(self.initial_state)))
+    
     def variant(self, **kwargs) -> Self:
         result = copy(self)
         for name, value in kwargs.items():

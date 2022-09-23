@@ -7,6 +7,7 @@ from numpy.random import Generator, default_rng
 from itertools import islice
 
 from .description import Description
+from .stat import Collector
 
 @dataclass()
 class Endless:
@@ -15,6 +16,8 @@ class Endless:
     _old_state: int = field(default = -1, init = False)
     _step: int = field(default = 0, init = False)
     _state_rng: Generator = field(default = None, init = False)
+    
+    _collectors: set[Collector] = field(default_factory = set, init = False)
 
     @property
     def state(self) -> int:
@@ -31,6 +34,11 @@ class Endless:
         self._state_rng = default_rng(self._description.my_seed)
         self.state = self._pick_initial_state()
 
+    def __eq__(self, other: Self) -> bool:
+        return self._description == other._description \
+           and self._step == other._step \
+           and self._state == self._state
+
     def __deepcopy__(self, memo: dict) -> Self:
         result = Endless.__new__(Endless)
         memo[id(self)] = result
@@ -41,6 +49,20 @@ class Endless:
                 case _:
                     setattr(result, k, deepcopy(v, memo))
         return result
+
+    def _bind_collector(self, collector: Collector) -> None:
+        self._collectors.add(collector)
+
+    def _unbind_collector(self, collector: Collector) -> None:
+        self._collectors.remove(collector)            
+
+    def _emit(self, step: int, state: int) -> None:
+        if len(self._collectors) == 0:
+            return
+        else:
+            for collector in self._collectors:
+                if collector._is_open:
+                    collector.put(self._description, step, state)
 
     def _pick_initial_state(self) -> int:
         if isinstance(self._description.initial_state, ndarray):
@@ -69,6 +91,7 @@ class Endless:
 
     def __next__(self) -> int:
         self._old_state = self._state
+        self._emit(self._step, self._old_state)
         self._state = self._pick_next_state()
         self._step += 1
         return self._old_state
