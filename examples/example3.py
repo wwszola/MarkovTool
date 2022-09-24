@@ -10,8 +10,8 @@ first_5_steps = f.take(5)
 print('Original process:')
 print(first_5_steps, f.branch().take(10))
 
-print('The process branched at 5th step with forced _state=3:')
-print(first_5_steps, f.branch(_state = 3).take(10))
+print('The process branched at 5th step with forced state=3:')
+print(first_5_steps, f.branch(state = 3).take(10))
 
 print('The process branched at 5th step with no possible transitions to state 1:')
 new_matrix = p1.matrix

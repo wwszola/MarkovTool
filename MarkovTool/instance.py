@@ -19,8 +19,8 @@ class Endless(Iterable):
     
     def __init__(self, description: Description) -> None:
         self._description = description
-        self.state: int = self._pick_initial_state()
-        self._old_state: int = -1
+        self._state: int = -1
+        self._forced_state: int = None
         self._step: int = 0
         self._state_rng: Generator = default_rng(self._description.my_seed)
     
@@ -30,12 +30,12 @@ class Endless(Iterable):
 
     @property
     def state(self) -> int:
-        return self._old_state
+        return self._state
 
     @state.setter 
     def state(self, value: int) -> None:
         if value >= 0 and value < self._description.dimension:
-            self._state = value
+            self._forced_state = value
         else:
             raise ValueError(f'State should be int in range [0, {self._description.dimension})')
 
@@ -94,11 +94,16 @@ class Endless(Iterable):
         return self
 
     def __next__(self) -> int:
-        self._old_state = self._state
-        self._emit(self._step, self._old_state)
-        self._state = self._pick_next_state()
+        if self._step == 0:
+            self._state = self._pick_initial_state()
+        if self._forced_state is not None:
+            self._state = self._forced_state
+            self._forced_state = None
+        else:
+            self._state = self._pick_next_state()
+        self._emit(self._step, self._state)
         self._step += 1
-        return self._old_state
+        return self._state
 
     def take(self, n: int = None) -> list:
         if n is None:
@@ -116,9 +121,9 @@ class Endless(Iterable):
         new = copy(self)
         new._id = Endless._gen_id()
         new._state_rng = deepcopy(self._state_rng)
-        if '_state' in kwargs:
-            new.state = kwargs['_state']
-            del kwargs['_state']
+        if 'state' in kwargs:
+            new.state = kwargs['state']
+            del kwargs['state']
         if kwargs:
             new._description = copy(self._description)
             for k, v in kwargs.items():
