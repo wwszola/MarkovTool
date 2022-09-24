@@ -38,6 +38,7 @@ class Collector:
     _count: int = 0
     @staticmethod
     def _gen_id() -> int:
+        """return new unique id"""
         id = Collector._count
         Collector._count += 1
         return id

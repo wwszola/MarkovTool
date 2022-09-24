@@ -48,6 +48,7 @@ class Description:
     _count: int = 0
     @staticmethod
     def _gen_id() -> int:
+        """returns new unique id"""
         id = Description._count
         Description._count += 1
         return id
