@@ -120,13 +120,15 @@ __HAS NOT BEEN REFACTORED YET__
 - parallel is itertools.zip_longest??
 - just use itertools to get the result you want
 ## TODO
+- example3: setting matrix on branch releases old_state which may not be correct
 - Collector.close unbinding instances
 - docstrings: 
 - - include info that branched instances are automatically emiiting to the collectors
-- instance, description
+- - instance, description
 - tests - behaviours we need to preserve:
 - - start with examples
 - stat module: count, ...
 - load from file: we want json
 - refactor game example
 - import clean-up
+- manual instance
