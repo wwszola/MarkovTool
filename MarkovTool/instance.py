@@ -10,6 +10,7 @@ from .description import Description
 from .stat import Collector
 
 class Endless(Iterable):
+    _count: int = 0
     @staticmethod
     def _gen_id() -> int:
         id = Endless._count
