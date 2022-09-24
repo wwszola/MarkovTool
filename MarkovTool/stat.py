@@ -13,7 +13,7 @@ class Collector:
 
     Attributes:
     _entries: dict
-        nested dictionary recording all states
+        nested dictionary recording all states, see put for details
     _is_open: bool = True
         if set to False no entries are accepted 
     _id: int
