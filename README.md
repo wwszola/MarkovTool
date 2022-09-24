@@ -99,9 +99,9 @@ print(instance.take(10))
 ```
 [4, 6, 1, 5, 3]
 ```
-Next, run second unique process, which has `_state` set to 4, by calling `branch`. Both of them eventually converges to the same output. Underlying RNGs produces the same numbers at the same steps, but only given the same previous state.
+Next, run second unique process, which has `_state` set to 4, by calling `branch`. Both of them eventually converge to the same output. Instances produces the same states at the same steps, but only given the same previous state.
 ```
-print(instance.branch(_state=4).take(10))
+print(instance.branch(state=4).take(10))
 print(instance.take(10))
 ```
 ```
@@ -123,7 +123,6 @@ __HAS NOT BEEN REFACTORED YET__
 - Collector.close unbinding instances
 - docstrings: 
 - - include info that branched instances are automatically emiiting to the collectors
-- - instance, description
 - tests - behaviours we need to preserve:
 - - start with examples
 - stat module: count, ...
