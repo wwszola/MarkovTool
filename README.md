@@ -109,7 +109,7 @@ print(instance.take(10))
 [1, 3, 2, 4, 5, 0, 2, 4, 0, 6]
 ```
 ### `Collector` section
-`Collector` allows to gather all instances running in a manner that takes into a consideration parallel branches, but no duplicates will be present
+`Collector` allows to gather all instances running in a manner that takes into a consideration parallel branches, but no duplicates will be present. 
 Present in stat module
 
 ### A game?
@@ -120,8 +120,13 @@ __HAS NOT BEEN REFACTORED YET__
 - parallel is itertools.zip_longest??
 - just use itertools to get the result you want
 ## TODO
-- stat module: context manager setting static collector ??, count, ...
-- create tests and make sure every setter checks its stuff, no invalid values are present
-- comment doc clean-up, ?import clean-up
+- Collector.close unbinding instances
+- docstrings: 
+- - include info that branched instances are automatically emiiting to the collectors
+- instance, description
+- tests - behaviours we need to preserve:
+- - start with examples
+- stat module: count, ...
 - load from file: we want json
 - refactor game example
+- import clean-up
