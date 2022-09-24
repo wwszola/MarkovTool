@@ -10,7 +10,12 @@ from .description import Description
 from .stat import Collector
 
 class Endless(Iterable):
-    _count = 0
+    @staticmethod
+    def _gen_id() -> int:
+        id = Endless._count
+        Endless._count += 1
+        return id
+    
     def __init__(self, description: Description) -> None:
         self._description = description
         self.state: int = self._pick_initial_state()
@@ -20,8 +25,7 @@ class Endless(Iterable):
     
         self._collectors: set[Collector] = set()
 
-        self._id = Endless._count
-        Endless._count += 1
+        self._id = Endless._gen_id()
 
     @property
     def state(self) -> int:
@@ -61,8 +65,7 @@ class Endless(Iterable):
             return
         else:
             for collector in self._collectors:
-                if collector._is_open:
-                    collector.put(self._description, self._id, step, state)
+                collector.put(self._description, self._id, step, state)
 
     def _pick_initial_state(self) -> int:
         if isinstance(self._description.initial_state, ndarray):
@@ -110,8 +113,7 @@ class Endless(Iterable):
 
     def branch(self, **kwargs) -> Self:
         new = copy(self)
-        new._id = Endless._count
-        Endless._count += 1
+        new._id = Endless._gen_id()
         new._state_rng = deepcopy(self._state_rng)
         if '_state' in kwargs:
             new.state = kwargs['_state']
