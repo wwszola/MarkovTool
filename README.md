@@ -93,8 +93,6 @@ process = Description.random(7)
 process.my_seed = 17
 instance = Endless(process)
 print(instance.take(5))
-print(instance.branch(_state=4).take(10))
-print(instance.take(10))
 ```
 ```
 [4, 6, 1, 5, 3]
