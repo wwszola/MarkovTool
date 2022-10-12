@@ -77,8 +77,7 @@ class Collector:
         """Try to make a new entry
 
         Makes sure no duplicates are present.
-        The entry is accepted if self._is_open == True,
-        d._my_seed is not None,
+        The entry is accepted if self._is_open == True, d._my_seed is not None,
         and one of the following is also True:
         - a chunk exists that was started by the same instance,
         and awaits new value at the correct step

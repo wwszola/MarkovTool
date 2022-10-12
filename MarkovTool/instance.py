@@ -198,6 +198,7 @@ class Endless(Iterable):
         new _state_rng will be a deepcopy of self._state_rng
         pass property name and desired value as keyword arguments
         use properties from Description to assign a variant description
+        branched instances preserve collectors, thus emitting without binding
         """
         new = copy(self)
         new._id = Endless._gen_id()

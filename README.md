@@ -121,13 +121,12 @@ __HAS NOT BEEN REFACTORED YET__
 - just use itertools to get the result you want
 ## TODO
 - Collector.close unbinding instances
+- stat module: collector pretty summary, count, ...
 - docstrings: 
-- - include info that branched instances are automatically emiiting to the collectors
+- - _
 - tests - behaviours we need to preserve:
 - - start with examples
-- package distribution using setuptools
-- stat module: count, ...
 - load from file: we want json
 - refactor game example
-- import clean-up
 - manual instance
+- package distribution using setuptools
