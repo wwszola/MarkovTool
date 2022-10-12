@@ -16,6 +16,11 @@ python setup.py install
 ```
 python examples/example2.py
 ```
+4. In order to run tests:
+```
+pip install pytest
+pytest tests/test1.py
+```
 4. Deactivate the virtual environment after use
 ```
 deactivate

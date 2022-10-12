@@ -14,9 +14,15 @@ def n_dummy_instances(n):
     class Dummy:
         def __init__(self):
             self.is_bound = False
+            self.collectors = []
 
         def _bind_collector(self, c):
+            self.collectors.append(c)
             self.is_bound = True
+
+        def _unbind_collector(self, c):
+            self.collectors.remove(c)
+            self.is_bound = False
 
     if n == 1:
         return Dummy()
@@ -61,3 +67,7 @@ class TestCollector:
             assert reduce(
                 lambda x, y: x and y,
                 map(lambda a: not a.is_bound, instances))
+
+        def test_put_true(self):
+            collector = n_collectors(1)
+            collector.put()
