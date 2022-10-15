@@ -128,7 +128,7 @@ class Endless(Iterable):
         if isinstance(self._description.initial_state, ndarray):
             rng = default_rng(None)
             pick: float = rng.random()
-            accumulated = cumsum(self._description.initial_state)
+            accumulated = self._description._initial_state_cumsum
             for i, value in enumerate(accumulated):
                 if pick < value:
                     return i
@@ -142,7 +142,7 @@ class Endless(Iterable):
         uses self._state_rng
         """
         pick: float = self._state_rng.random()
-        accumulated = cumsum(self._description.matrix[self._state])
+        accumulated = self._description._matrix_cumsum[self._state]
         for i, value in enumerate(accumulated):
             if pick < value:
                 return i
