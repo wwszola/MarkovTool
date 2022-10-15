@@ -123,7 +123,6 @@ __HAS NOT BEEN REFACTORED YET__
 - parallel is itertools.zip_longest??
 - just use itertools to get the result you want
 ## TODO
-- Collector.close unbinding instances
 - stat module: collector pretty summary, count, ...
 - docstrings: 
 - - _
@@ -132,4 +131,7 @@ __HAS NOT BEEN REFACTORED YET__
 - load from file: we want json
 - refactor game example
 - manual instance
+- model consists of first Endless layer and Dependent layer: 
+- - Base instance
+- - Endless->Finite and Dependent
 - package distribution using setuptools
