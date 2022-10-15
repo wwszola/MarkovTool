@@ -1,5 +1,5 @@
 from numpy import array, ndarray, float32, allclose, newaxis
-from numpy.random import Generator, default_rng
+from numpy.random import default_rng, cumsum
 from copy import copy
 from typing_extensions import Self
 
@@ -30,7 +30,11 @@ class Description:
     _dimension: int = None
     _my_seed: int = None
     _matrix: ndarray = None
+    _matrix_cumsum: ndarray = None
+        precalculated values for picking algorithm
     _initial_state: int | ndarray = None
+    _initial_state_cum_sum: ndarray = None
+        precalculated values for picking algorithm
 
     Methods:
     __init__(self, dimension: int, my_seed: int)
@@ -60,7 +64,9 @@ class Description:
         self._my_seed: int = None
         self.my_seed: int = my_seed
         self._matrix: ndarray = None
+        self._matrix_cumsum: ndarray = None
         self._initial_state: int | ndarray = None
+        self._initial_state_cumsum: ndarray = None
         self._id = Description._gen_id()
 
     @property
@@ -118,10 +124,12 @@ class Description:
     @matrix.setter
     def matrix(self, value: ndarray) -> None:
         """matrix property setter
+        also calculates self._matrix_cumsum
 
         raises ValueError
         """
         self._matrix = self._verify_matrix(value)
+        self._matrix_cumsum = cumsum(self._matrix, axis=1)
 
     def _verify_matrix(self, value: list[list[float]] | ndarray) -> ndarray:
         """returns verified copy of the matrix
@@ -157,10 +165,12 @@ class Description:
     @initial_state.setter
     def initial_state(self, value: int | list | ndarray) -> None:
         """initial_state property setter
+        also calculates self._initial_state_cumsum
 
         raises ValueError
         """
         self._initial_state = self._verify_initial_state(value)
+        self._initial_state_cumsum = cumsum(self._initial_state)
 
     def _verify_initial_state(self, value: int | list | ndarray) -> int | ndarray:
         """returns verified copy of the initial_state
