@@ -1,5 +1,5 @@
-from numpy import array, ndarray, float32, allclose, newaxis
-from numpy.random import default_rng, cumsum
+from numpy import array, ndarray, float32, allclose, newaxis, cumsum
+from numpy.random import default_rng
 from copy import copy
 from typing_extensions import Self
 
