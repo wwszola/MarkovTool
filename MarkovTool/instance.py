@@ -1,4 +1,3 @@
-from dataclasses import dataclass, field
 from copy import deepcopy, copy
 from typing import Callable, Iterable
 from typing_extensions import Self
@@ -163,9 +162,10 @@ class Endless(Iterable):
         """
         if self._step == 0:
             self._state = self._pick_initial_state()
-        if self._forced_state is not None:
+        elif self._forced_state is not None:
             self._state = self._forced_state
             self._forced_state = None
+            self._state_rng.random() # consume value for continuity
         else:
             self._state = self._pick_next_state()
         self._emit(self._step, self._state)
