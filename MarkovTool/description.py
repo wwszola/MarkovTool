@@ -12,16 +12,19 @@ class Description:
     _gen_id() -> int
 
     Properties:
+    shape: tuple[int]
+        input x output size of state space  
     my_seed: int
         value which seeds the instance of a process
 
     Attributes:
     _id: int
+    _shape: tuple[int]
     _my_seed: int = None
 
     Methods:
-    __init__(self, my_seed: int)
-        constructor setting my_seed 
+    __init__(self, shape: tuple[int], my_seed: int)
+        constructor setting shape and my_seed 
     __hash__(self) -> int
         returns self._id
     variant(self, **kwargs) -> Self
@@ -36,11 +39,44 @@ class Description:
         Description._count += 1
         return id
     
-    def __init__(self, my_seed: int = None):
-        """constructor setting my_seed """
+    def __init__(self, shape: tuple[int] = None, my_seed: int = None):
+        """constructor setting shape and my_seed
+
+        all parameters default to None
+        """
+        self._shape: tuple[int] = None
+        self.shape = shape
         self._my_seed: int = None
         self.my_seed: int = my_seed
         self._id = Description._gen_id()
+
+    @property
+    def shape(self) -> tuple[int]:
+        """input x output size of state space
+        
+        raises ValueError"""
+        if self._shape is not None:
+            return self._shape
+        else:
+            raise ValueError('Shape isn\'t defined yet')
+
+    @shape.setter
+    def shape(self, value: tuple[int]):
+        """shape property setter
+
+        raises ValueError
+        """
+        if any((x is None for x in value)):
+            return
+        
+        if self._shape is None:
+            if all((x > 0 for x in value)):
+                self._shape = value
+            else:
+                raise ValueError('Shape must be tuple of positive integers')
+        else:
+            raise ValueError('Shape may be set only once')
+
 
     @property
     def my_seed(self) -> int:
@@ -91,7 +127,6 @@ class Markov(Description):
         initial distribution of a process
 
     Attributes:
-    _dimension: int = None
     _matrix: ndarray = None
     _matrix_cumsum: ndarray = None
         precalculated values for picking algorithm
@@ -111,41 +146,35 @@ class Markov(Description):
 
     def __init__(self, dimension: int = None, my_seed: int = None):
         """constructor setting dimension and my_seed"""
-        self._dimension: int = None
-        self.dimension = dimension
+        super().__init__((dimension, dimension), my_seed)
         self._matrix: ndarray = None
         self._matrix_cumsum: ndarray = None
         self._initial_state: int | ndarray = None
         self._initial_state_cumsum: ndarray = None
-        super().__init__(my_seed)
 
     @property
     def dimension(self) -> int:
         """size of the state space
-        
+
+        calls Description.shape getter
         raises ValueError
         """
-        if self._dimension is not None:
-            return self._dimension
-        else:
-            raise ValueError('Dimension isn\'t defined yet')
+        try:
+            return self.shape[0]
+        except ValueError as err:
+            raise err        
 
     @dimension.setter
     def dimension(self, value: int) -> None:
         """dimension property setter
         
+        calls Description.shape setter
         raises ValueError
         """
-        if value is None:
-            return 
-        
-        if self._dimension is None:
-            if value >= 0:
-                self._dimension = value
-            else:
-                raise ValueError('Dimension must be positive integer')
-        else:
-            raise ValueError('Dimension may be set only once')
+        try:
+            self.shape = (value, value)
+        except ValueError as err:
+            raise err
 
     @property
     def matrix(self) -> ndarray:
@@ -172,21 +201,25 @@ class Markov(Description):
         """returns verified copy of the matrix
         
         value after normalization should satisfy Markov property
-        raises ValueError otherwise
+        raises ValueError 
         """
-        value = array(value, dtype=float32)
-        if len(value.shape) != 2 or value.shape[0] != value.shape[1]:
-            raise ValueError('Matrix should be an array NxN in size')
+        try:
+            value = array(value, dtype=float32)
+            if len(value.shape) != 2 or value.shape[0] != value.shape[1]:
+                raise ValueError('Matrix should be an array NxN in size')
 
-        if self._dimension is not None and value.shape[0] != self._dimension:
-            raise ValueError('Matrix dimension should be equal to the original dimension')
-        
-        value /= value.sum(1)[:, newaxis]
+            if value.shape != self.shape:
+                raise ValueError('Matrix dimension should be equal to the original dimension')
+            
+            value /= value.sum(1)[:, newaxis]
 
-        if not allclose(value.sum(1), 1.0):
-            raise ValueError('Matrix should be a right-stochastic matrix')
+            if not allclose(value.sum(1), 1.0):
+                raise ValueError('Matrix should be a right-stochastic matrix')
+            
+            return value
         
-        return value
+        except ValueError as err:
+            raise err
 
     @property
     def initial_state(self) -> int | ndarray:
@@ -219,25 +252,28 @@ class Markov(Description):
 
         raises ValueError, TypeError
         """
-        if isinstance(value, (list, ndarray)):
-            if len(value) != self._dimension:
-                raise ValueError('Initial state dimension should be equal to the original dimension')
+        try:
+            if isinstance(value, (list, ndarray)):
+                if len(value) != self.dimension:
+                    raise ValueError('Initial state dimension should be equal to the original dimension')
 
-            value /= value.sum()[newaxis]         
+                value /= value.sum()[newaxis]         
 
-            if allclose(value.sum(), 1.0):
-                return array(value, dtype = float32)
+                if allclose(value.sum(), 1.0):
+                    return array(value, dtype = float32)
+                else:
+                    raise ValueError('Initial state probabilities should normalize to sum 1.0')
+            
+            elif isinstance(value, int):
+                if value < 0 or value >= self.dimension:
+                    raise ValueError(f'Invalid initial state: int {value}')
+                else:
+                    return value
             else:
-                raise ValueError('Initial state probabilities should normalize to sum 1.0')
+                raise TypeError('Initial state should be the type of either int, list or numpy.ndarray')
+        except (ValueError, TypeError) as err:
+            raise err
         
-        elif isinstance(value, int):
-            if value < 0 or value >= self._dimension:
-                raise ValueError(f'Invalid initial state: int {value}')
-            else:
-                return value
-        else:
-            raise TypeError('Initial state should be the type of either int, list or numpy.ndarray')
-
     @staticmethod
     def from_array(matrix: ndarray, initial_state: ndarray) -> Self:
         """creates object setting all but my_seed property
@@ -251,8 +287,8 @@ class Markov(Description):
         object: Markov = None
         try:
             object = Markov()
+            object.shape = matrix.shape
             object.matrix = matrix
-            object.dimension = object.matrix.shape[0]
             object.initial_state = initial_state
         except (ValueError, TypeError) as err:
             print(f'Failed loading data from an array')
