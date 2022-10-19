@@ -1,6 +1,6 @@
-from MarkovTool import Description, Finite, Collector
+from MarkovTool import Markov, Finite, Collector
 
-d = Description.random(3, seed_ = 11)
+d = Markov.random(3, seed_ = 11)
 f = Finite(d, lambda self: self._step >= 10)
 
 c = Collector(f)

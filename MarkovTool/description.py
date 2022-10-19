@@ -4,12 +4,78 @@ from copy import copy
 from typing_extensions import Self
 
 class Description:
-    """Dataclass describing a Markov process
+    """Class describing a process
 
     Static:
     _count: int = 0
         number of all instances created
     _gen_id() -> int
+
+    Properties:
+    my_seed: int
+        value which seeds the instance of a process
+
+    Attributes:
+    _id: int
+    _my_seed: int = None
+
+    Methods:
+    __init__(self, my_seed: int)
+        constructor setting my_seed 
+    __hash__(self) -> int
+        returns self._id
+    variant(self, **kwargs) -> Self
+        returns modified copy
+    """
+    
+    _count: int = 0
+    @staticmethod
+    def _gen_id() -> int:
+        """returns new unique id"""
+        id = Description._count
+        Description._count += 1
+        return id
+    
+    def __init__(self, my_seed: int = None):
+        """constructor setting my_seed """
+        self._my_seed: int = None
+        self.my_seed: int = my_seed
+        self._id = Description._gen_id()
+
+    @property
+    def my_seed(self) -> int:
+        """value which seeds the instance of a process
+        
+        if None, every instance will have different behaviour
+        """
+        return self._my_seed
+
+    @my_seed.setter
+    def my_seed(self, value: int) -> None:
+        """my_seed property setter"""
+        self._my_seed = value
+
+    def __hash__(self) -> int:
+        """returns self._id"""
+        return self._id
+    
+    def variant(self, **kwargs) -> Self:
+        """returns modified copy
+
+        pass property name and desired value as keyword arguments
+        """
+        result = copy(self)
+        self._id = Description._gen_id()
+        for name, value in kwargs.items():
+            if hasattr(result, name):
+                setattr(result, name, value)
+        return result
+
+    
+class Markov(Description):
+    """Dataclass describing a Markov process
+    
+    Static:
         returns new unique id
     from_array(matrix: ndarray, initial_state: int | ndarray) -> Self:
         creates object setting all but my_seed property
@@ -19,8 +85,6 @@ class Description:
     Properties:
     dimension: int
         size of the state space
-    my_seed: int
-        value which seeds the instance of a process
     matrix: ndarray 
         transition matrix for a process
     initial_state: int | ndarray
@@ -28,7 +92,6 @@ class Description:
 
     Attributes:
     _dimension: int = None
-    _my_seed: int = None
     _matrix: ndarray = None
     _matrix_cumsum: ndarray = None
         precalculated values for picking algorithm
@@ -43,31 +106,18 @@ class Description:
         returns verified copy of a matrix
     _verify_initial_state(self, value: int | ndarray) -> int | ndarray
         returns verified copy of an initial state
-    __hash__(self) -> int
-        returns self._id
-    variant(self, **kwargs) -> Self
-        returns modified copy
     
     """
-    _count: int = 0
-    @staticmethod
-    def _gen_id() -> int:
-        """returns new unique id"""
-        id = Description._count
-        Description._count += 1
-        return id
 
     def __init__(self, dimension: int = None, my_seed: int = None):
         """constructor setting dimension and my_seed"""
         self._dimension: int = None
         self.dimension = dimension
-        self._my_seed: int = None
-        self.my_seed: int = my_seed
         self._matrix: ndarray = None
         self._matrix_cumsum: ndarray = None
         self._initial_state: int | ndarray = None
         self._initial_state_cumsum: ndarray = None
-        self._id = Description._gen_id()
+        super().__init__(my_seed)
 
     @property
     def dimension(self) -> int:
@@ -96,19 +146,6 @@ class Description:
                 raise ValueError('Dimension must be positive integer')
         else:
             raise ValueError('Dimension may be set only once')
-
-    @property
-    def my_seed(self) -> int:
-        """value which seeds the instance of a process
-        
-        if None, every instance will have different behaviour
-        """
-        return self._my_seed
-
-    @my_seed.setter
-    def my_seed(self, value: int) -> None:
-        """my_seed property setter"""
-        self._my_seed = value
 
     @property
     def matrix(self) -> ndarray:
@@ -200,22 +237,6 @@ class Description:
                 return value
         else:
             raise TypeError('Initial state should be the type of either int, list or numpy.ndarray')
-    
-    def __hash__(self) -> int:
-        """returns self._id"""
-        return self._id
-    
-    def variant(self, **kwargs) -> Self:
-        """returns modified copy
-
-        pass property name and desired value as keyword arguments
-        """
-        result = copy(self)
-        self._id = Description._gen_id()
-        for name, value in kwargs.items():
-            if hasattr(result, name):
-                setattr(result, name, value)
-        return result
 
     @staticmethod
     def from_array(matrix: ndarray, initial_state: ndarray) -> Self:
@@ -224,12 +245,12 @@ class Description:
         Dimension is derived from shape of the matrix
 
         Returns:
-            Description if created succesfully
+            Markov if created succesfully
             None if failed to set valid properties
         """
-        object: Description = None
+        object: Markov = None
         try:
-            object = Description()
+            object = Markov()
             object.matrix = matrix
             object.dimension = object.matrix.shape[0]
             object.initial_state = initial_state
@@ -246,13 +267,13 @@ class Description:
         Generates valid matrix and initial_state values
 
         Returns:
-            Description if created succesfully
+            Markov if created succesfully
             None if failed to set valid properties
         """
         rng = default_rng(seed_)
         matrix = rng.random((dimension, dimension))
         initial_state = rng.random(dimension)
-        object = Description.from_array(matrix, initial_state)
+        object = Markov.from_array(matrix, initial_state)
         if object is not None:
             object.my_seed = seed_
         return object

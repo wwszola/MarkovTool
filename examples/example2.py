@@ -1,7 +1,7 @@
-from MarkovTool import Description, Endless
+from MarkovTool import Markov, Endless
 
 
-process: Description = Description.random(4, seed_=0)
+process: Markov = Markov.random(4, seed_=0)
 
 print('Beginning of these should be different from each other')
 for _ in range(3):

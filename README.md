@@ -29,8 +29,8 @@ deactivate
 ## Get started
 ### First run
 ```
-from MarkovTool import Description, Endless
-process = Description.random(3)
+from MarkovTool import Markov, Endless
+process = Markov.random(3)
 
 print(Endless(process).take(10))
 ```
@@ -49,7 +49,7 @@ for _ in range(3):
 [2, 0, 1, 0, 2, 0, 2, 0, 1, 0]
 [0, 1, 2, 0, 2, 2, 0, 2, 0, 2]
 ```
-The same description generates different processes. That happens because `my_seed` property of `Description` defaults to `None`, generating unique RNGs.
+The same description generates different processes. That happens because `my_seed` property of `Markov` defaults to `None`, generating unique RNGs.
 Set this property to make sure the process behaves in repeatable manner.
 ```
 process.my_seed = 0
@@ -72,11 +72,11 @@ for _ in range(3):
 [1, 2, 0, 0, 0, 2, 2, 2, 2, 2]
 [1, 2, 0, 0, 0, 2, 2, 2, 2, 2]
 ```
-See also `Description.random`, `Endless.skip`
+See also `Markov.random`, `Endless.skip`
 
 ### Manipulation
 ```
-process = Description.random(2)
+process = Markov.random(2)
 process.initial_state = 0
 p_mat = process.matrix
 # removing transition from state 1 to state 0 entirely 
@@ -94,7 +94,7 @@ Call method `variant` to create a copy of the description. Pass properties you w
 ### Parallel worlds
 You may run instances with different properties while keeping others to create complex behaviour. First, generate 5 steps from `Endless` instance.
 ```
-process = Description.random(7)
+process = Markov.random(7)
 process.my_seed = 17
 instance = Endless(process)
 print(instance.take(5))

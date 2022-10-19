@@ -5,7 +5,7 @@ from numpy import ndarray, cumsum
 from numpy.random import Generator, default_rng
 from itertools import islice
 
-from .description import Description
+from .description import Markov
 from .stat import Collector
 
 class Endless(Iterable):
@@ -24,7 +24,7 @@ class Endless(Iterable):
         on next next the effect executes
     
     Attributes:
-    _description: Description
+    _description: Markov
     _state: int = -1
         last state generated
     _forced_state: int = None
@@ -37,7 +37,7 @@ class Endless(Iterable):
     _id: int
 
     Methods:
-    __init__(self, description: Description)
+    __init__(self, description: Markov)
         constructor creating new instance from description
     __eq__(self, other: Self) -> bool
         equal if _description, _step and _state are all equal 
@@ -71,7 +71,7 @@ class Endless(Iterable):
         Endless._count += 1
         return id
     
-    def __init__(self, description: Description) -> None:
+    def __init__(self, description: Markov) -> None:
         """constructor creating new instance from description"""
         self._description = description
         self._state: int = -1
@@ -197,7 +197,7 @@ class Endless(Iterable):
         
         new _state_rng will be a deepcopy of self._state_rng
         pass property name and desired value as keyword arguments
-        use properties from Description to assign a variant description
+        use properties from Markov to assign a variant description
         branched instances preserve collectors, thus emitting without binding
         """
         new = copy(self)
@@ -225,12 +225,12 @@ class Finite(Endless):
     __next__(self) -> int:
         check self._stop_predicate and call Endless.__next__
     """
-    def __init__(self, description: Description,
+    def __init__(self, description: Markov,
                  stop_predicate: Callable[[Self], bool] = lambda self: False):
         """extends Endless.__init__ and sets stop_predicate
         
         Parameters:
-        description: Description
+        description: Markov
             passed to Endless.__init__
         stop_predicate: Callable[[Self], bool]
             defaults to lambda self: False
