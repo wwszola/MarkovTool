@@ -65,17 +65,17 @@ class Description:
         """shape property setter
 
         raises ValueError
-        """
-        if any((x is None for x in value)):
-            return
-        
-        if self._shape is None:
-            if all((x > 0 for x in value)):
-                self._shape = value
-            else:
-                raise ValueError('Shape must be tuple of positive integers')
-        else:
+        """        
+        if self._shape is not None:
             raise ValueError('Shape may be set only once')
+
+        if value is None or value[0] is None or value[1] is None:
+            return
+
+        if value[0] > 0 and value[1] > 0:
+            self._shape = value
+        else:
+            raise ValueError('Shape must be tuple of two positive integers')
 
 
     @property
