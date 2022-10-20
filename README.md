@@ -123,17 +123,15 @@ __HAS NOT BEEN REFACTORED YET__
 ## Notes
 - parallel is itertools.zip_longest??
 - just use itertools to get the result you want
-- emmision matrix would be input.dimension x self.dimension, dependent needs its own description without initial state and correcting matrix verifying
 ## TODO
+- picking next and initial defined in description
+- instance should work for all descriptions
+- Dependent(p1, Endless(p2)) - check for sizes 
+- manual description without matrix and my_seed: abstract one layer more??
+- model consists of first Endless layer and Dependent layers: 
 - stat module: collector pretty summary, count, ...
 - docstrings: 
 - - _
-- tests - behaviours we need to preserve:
-- - start with examples
-- load from file: we want json
-- refactor game example
-- manual instance
-- model consists of first Endless layer and Dependent layer: 
-- - Base instance
-- - Endless->Finite and Dependent
+- tests: description -> instance -> stat
+- load from file: we want json, really?
 - package distribution using setuptools
