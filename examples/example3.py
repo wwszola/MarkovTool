@@ -1,7 +1,7 @@
 from MarkovTool import Markov, Endless
 
 
-p1 = Markov.random(4, seed_ = 1)
+p1 = Markov(4).fill_random(seed_ = 11)
 p1.initial_state = 0
 
 f = Endless(p1)

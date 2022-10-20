@@ -30,14 +30,16 @@ deactivate
 ### First run
 ```
 from MarkovTool import Markov, Endless
-process = Markov.random(3)
+process = Markov(3).fill_random(seed_ = 0)
 
 print(Endless(process).take(10))
 ```
 ```
 [0, 0, 2, 2, 0, 1, 1, 1, 1, 2]
 ```
-Static method `random`, given the dimension, generates values for Markov matrix and initial probability vector. Constructor `Endless` creates a new running instance. We generate first 10 states and print them to the terminal.
+We set dimension of the state space by calling constructor `Markov`.
+Method `fill_random` generates values for probability matrix and initial probability vector. Identical description is generated every time by passing `seed_` argument.
+Constructor `Endless` creates a new running instance. We generate first 10 states and print them to the terminal.
 
 ### Stay on the path
 ```
@@ -76,7 +78,7 @@ See also `Markov.random`, `Endless.skip`
 
 ### Manipulation
 ```
-process = Markov.random(2)
+process = Markov(2).fill_random()
 process.initial_state = 0
 p_mat = process.matrix
 # removing transition from state 1 to state 0 entirely 
@@ -94,8 +96,7 @@ Call method `variant` to create a copy of the description. Pass properties you w
 ### Parallel worlds
 You may run instances with different properties while keeping others to create complex behaviour. First, generate 5 steps from `Endless` instance.
 ```
-process = Markov.random(7)
-process.my_seed = 17
+process = Markov(7, my_seed = 17).fill_random()
 instance = Endless(process)
 print(instance.take(5))
 ```
@@ -122,6 +123,7 @@ __HAS NOT BEEN REFACTORED YET__
 ## Notes
 - parallel is itertools.zip_longest??
 - just use itertools to get the result you want
+- emmision matrix would be input.dimension x self.dimension, dependent needs its own description without initial state and correcting matrix verifying
 ## TODO
 - stat module: collector pretty summary, count, ...
 - docstrings: 

@@ -1,5 +1,5 @@
 from numpy import array, ndarray, float32, allclose, newaxis, cumsum
-from numpy.random import default_rng
+from numpy.random import default_rng, Generator
 from copy import copy
 from typing_extensions import Self
 
@@ -16,11 +16,16 @@ class Description:
         input x output size of state space  
     my_seed: int
         value which seeds the instance of a process
+    matrix: ndarray 
+        probability matrix for a process
 
     Attributes:
     _id: int
     _shape: tuple[int]
     _my_seed: int = None
+    _matrix: ndarray = None
+    _matrix_cumsum: ndarray = None
+        precalculated values for picking algorithm
 
     Methods:
     __init__(self, shape: tuple[int], my_seed: int)
@@ -29,6 +34,8 @@ class Description:
         returns self._id
     variant(self, **kwargs) -> Self
         returns modified copy
+    fill_random(self, seed_: int) -> Generator:
+        generates random matrix 
     """
     
     _count: int = 0
@@ -39,16 +46,19 @@ class Description:
         Description._count += 1
         return id
     
-    def __init__(self, shape: tuple[int] = None, my_seed: int = None):
-        """constructor setting shape and my_seed
+    def __init__(self, shape: tuple[int] = None, my_seed: int = None, matrix: ndarray = None):
+        """constructor setting shape, my_seed, matrix
 
         all parameters default to None
         """
+        self._id = Description._gen_id()
         self._shape: tuple[int] = None
         self.shape = shape
         self._my_seed: int = None
         self.my_seed: int = my_seed
-        self._id = Description._gen_id()
+        self._matrix: ndarray = None
+        self.matrix = matrix
+        self._matrix_cumsum: ndarray = None
 
     @property
     def shape(self) -> tuple[int]:
@@ -91,6 +101,53 @@ class Description:
         """my_seed property setter"""
         self._my_seed = value
 
+    @property
+    def matrix(self) -> ndarray:
+        """probability matrix for a process
+
+        raises ValueError
+        """
+        if self._matrix is not None:
+            return copy(self._matrix)
+        else:
+            raise ValueError('Matrix isn\'t defined yet')
+
+    @matrix.setter
+    def matrix(self, value: ndarray) -> None:
+        """matrix property setter
+        also calculates self._matrix_cumsum
+
+        raises ValueError
+        """
+        if value is None:
+            return
+        
+        self._matrix = self._verify_matrix(value)
+        self._matrix_cumsum = cumsum(self._matrix, axis=1)
+
+    def _verify_matrix(self, value: list[list[float]] | ndarray) -> ndarray:
+        """returns verified copy of the matrix
+        
+        values are normalized so the sum of every row is equal to 1.0
+        raises ValueError 
+        """
+        try:
+            value = array(value, dtype=float32)
+
+            if value.shape != self.shape:
+                raise ValueError('Matrix dimension should be equal to the original dimension')
+            
+            value /= value.sum(1)[:, newaxis]
+
+            if not allclose(value.sum(1), 1.0):
+                raise ValueError('Matrix should be a right-stochastic matrix')
+            
+            return value
+        
+        except ValueError as err:
+            raise err
+
+
     def __hash__(self) -> int:
         """returns self._id"""
         return self._id
@@ -107,29 +164,28 @@ class Description:
                 setattr(result, name, value)
         return result
 
+    def fill_random(self, seed_: int = None, rng: Generator = None) -> Self:
+        """generates random matrix 
+        
+        Using seed_ as a sequence for rng
+        Generates valid matrix values
+        Returns self
+        """
+        if rng is None:
+            rng = default_rng(seed_)
+        self.matrix = rng.random(self.shape)
+        return self
     
 class Markov(Description):
     """Dataclass describing a Markov process
     
-    Static:
-        returns new unique id
-    from_array(matrix: ndarray, initial_state: int | ndarray) -> Self:
-        creates object setting all but my_seed property
-    random(dimension: int, seed_: int = None) -> Self
-        generates random process setting all properties 
-
     Properties:
     dimension: int
         size of the state space
-    matrix: ndarray 
-        transition matrix for a process
     initial_state: int | ndarray
         initial distribution of a process
 
     Attributes:
-    _matrix: ndarray = None
-    _matrix_cumsum: ndarray = None
-        precalculated values for picking algorithm
     _initial_state: int | ndarray = None
     _initial_state_cum_sum: ndarray = None
         precalculated values for picking algorithm
@@ -137,19 +193,18 @@ class Markov(Description):
     Methods:
     __init__(self, dimension: int, my_seed: int)
         constructor setting dimension and my_seed
-    _verify_matrix(self, value: ndarray) -> ndarray
-        returns verified copy of a matrix
     _verify_initial_state(self, value: int | ndarray) -> int | ndarray
         returns verified copy of an initial state
-    
+    fill_random(self, seed_: int, rng: Generator = None) -> Self:
+        extends Description.fill_random and generates initial_state
     """
 
-    def __init__(self, dimension: int = None, my_seed: int = None):
+    def __init__(self, dimension: int = None, my_seed: int = None, 
+                 matrix: ndarray = None, initial_state: ndarray = None):
         """constructor setting dimension and my_seed"""
-        super().__init__((dimension, dimension), my_seed)
-        self._matrix: ndarray = None
-        self._matrix_cumsum: ndarray = None
+        super().__init__((dimension, dimension), my_seed, matrix)
         self._initial_state: int | ndarray = None
+        self.initial_state = initial_state
         self._initial_state_cumsum: ndarray = None
 
     @property
@@ -173,51 +228,6 @@ class Markov(Description):
         """
         try:
             self.shape = (value, value)
-        except ValueError as err:
-            raise err
-
-    @property
-    def matrix(self) -> ndarray:
-        """transition matrix for a process
-
-        raises ValueError
-        """
-        if self._matrix is not None:
-            return copy(self._matrix)
-        else:
-            raise ValueError('Matrix isn\'t defined yet')
-
-    @matrix.setter
-    def matrix(self, value: ndarray) -> None:
-        """matrix property setter
-        also calculates self._matrix_cumsum
-
-        raises ValueError
-        """
-        self._matrix = self._verify_matrix(value)
-        self._matrix_cumsum = cumsum(self._matrix, axis=1)
-
-    def _verify_matrix(self, value: list[list[float]] | ndarray) -> ndarray:
-        """returns verified copy of the matrix
-        
-        value after normalization should satisfy Markov property
-        raises ValueError 
-        """
-        try:
-            value = array(value, dtype=float32)
-            if len(value.shape) != 2 or value.shape[0] != value.shape[1]:
-                raise ValueError('Matrix should be an array NxN in size')
-
-            if value.shape != self.shape:
-                raise ValueError('Matrix dimension should be equal to the original dimension')
-            
-            value /= value.sum(1)[:, newaxis]
-
-            if not allclose(value.sum(1), 1.0):
-                raise ValueError('Matrix should be a right-stochastic matrix')
-            
-            return value
-        
         except ValueError as err:
             raise err
 
@@ -248,7 +258,7 @@ class Markov(Description):
         value: int 
             should be in range [0, self._dimension)
         value: list | ndarray
-            after normalization sum over value should be close to 1.0
+            after normalization sum over rows should be close to 1.0
 
         raises ValueError, TypeError
         """
@@ -273,43 +283,13 @@ class Markov(Description):
                 raise TypeError('Initial state should be the type of either int, list or numpy.ndarray')
         except (ValueError, TypeError) as err:
             raise err
-        
-    @staticmethod
-    def from_array(matrix: ndarray, initial_state: ndarray) -> Self:
-        """creates object setting all but my_seed property
-        
-        Dimension is derived from shape of the matrix
 
-        Returns:
-            Markov if created succesfully
-            None if failed to set valid properties
+    def fill_random(self, seed_: int = None, rng: Generator = None) -> Self:
+        """extends Description.fill_random and generates random initial_state
+        
+        Returns self
         """
-        object: Markov = None
-        try:
-            object = Markov()
-            object.shape = matrix.shape
-            object.matrix = matrix
-            object.initial_state = initial_state
-        except (ValueError, TypeError) as err:
-            print(f'Failed loading data from an array')
-            print(err)
-        return object   
-
-    @staticmethod
-    def random(dimension: int, seed_: int = None) -> Self:
-        """generates random process setting all properties 
-        
-        Using seed_ as a sequence for rng
-        Generates valid matrix and initial_state values
-
-        Returns:
-            Markov if created succesfully
-            None if failed to set valid properties
-        """
-        rng = default_rng(seed_)
-        matrix = rng.random((dimension, dimension))
-        initial_state = rng.random(dimension)
-        object = Markov.from_array(matrix, initial_state)
-        if object is not None:
-            object.my_seed = seed_
-        return object
+        if rng is None:
+            rng = default_rng(seed_)
+        self.initial_state = rng.random(self.dimension)
+        return super().fill_random(seed_, rng)

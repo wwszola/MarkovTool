@@ -1,12 +1,13 @@
 from MarkovTool import Markov, Finite, Collector
 
-d = Markov.random(3, seed_ = 11)
-f = Finite(d, lambda self: self._step >= 10)
-
+d = Markov(8, my_seed = 7).fill_random()
+f = Finite(d, lambda self: self._step >= 15)
 c = Collector(f)
-f.skip(3)
-g = f.branch()
-g.state = 1
-f.skip(3), g.skip(6)
+
+f.skip(5)
+g = f.branch(state = 1)
+f.skip(5), g.skip(5)
+g.state = 4
+f.skip(), g.skip()
 c.close()
 print(c._entries) 

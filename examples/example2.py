@@ -1,7 +1,7 @@
 from MarkovTool import Markov, Endless
 
 
-process: Markov = Markov.random(4, seed_=0)
+process: Markov = Markov(6, my_seed = 5).fill_random()
 
 print('Beginning of these should be different from each other')
 for _ in range(3):
