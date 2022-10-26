@@ -3,7 +3,7 @@ from numpy.random import default_rng, Generator
 from copy import copy
 from typing_extensions import Self
 
-class Description:
+class Description():
     """Class describing a process
 
     Static:
@@ -18,6 +18,8 @@ class Description:
         value which seeds the instance of a process
     matrix: ndarray 
         probability matrix for a process
+    initial_state: int | ndarray
+        initial distribution of a process
 
     Attributes:
     _id: int
@@ -26,12 +28,23 @@ class Description:
     _matrix: ndarray = None
     _matrix_cumsum: ndarray = None
         precalculated values for picking algorithm
+    _initial_state: int | ndarray = None
+    _initial_state_cum_sum: ndarray = None
+        precalculated values for picking algorithm
 
     Methods:
-    __init__(self, shape: tuple[int], my_seed: int)
-        constructor setting shape and my_seed 
+    __init__(self, shape, my_seed, matrix, initial_state)
+        constructor setting shape, my_seed, matrix and initial_state
+    _verify_matrix(self, value: list[list[float]] | ndarray) -> ndarray
+        returns verified copy of the matrix
+    _verify_initial_state(self, value: int | ndarray) -> int | ndarray
+        returns verified copy of an initial state
     __hash__(self) -> int
         returns self._id
+    _initial(self, pick: float) -> int
+        defines rule for initial state
+    _transition(self, state: int, pick: float) -> int
+        defines rule for the next state
     variant(self, **kwargs) -> Self
         returns modified copy
     fill_random(self, seed_: int) -> Generator:
@@ -46,8 +59,9 @@ class Description:
         Description._count += 1
         return id
     
-    def __init__(self, shape: tuple[int] = None, my_seed: int = None, matrix: ndarray = None):
-        """constructor setting shape, my_seed, matrix
+    def __init__(self, shape: tuple[int] = None, my_seed: int = None, 
+                 matrix: ndarray = None, initial_state: int | ndarray = None):
+        """constructor setting shape, my_seed, matrix, initial_state
 
         all parameters default to None
         """
@@ -57,8 +71,11 @@ class Description:
         self._my_seed: int = None
         self.my_seed: int = my_seed
         self._matrix: ndarray = None
-        self.matrix = matrix
         self._matrix_cumsum: ndarray = None
+        self.matrix = matrix
+        self._initial_state: int | ndarray = None
+        self._initial_state_cumsum: ndarray = None
+        self.initial_state = initial_state
 
     @property
     def shape(self) -> tuple[int]:
@@ -147,11 +164,102 @@ class Description:
         except ValueError as err:
             raise err
 
+    @property
+    def initial_state(self) -> int | ndarray:
+        """initial distribution of a process
+
+        raises ValueError
+        """
+        if self._initial_state is not None:
+            return copy(self._initial_state)
+        else:
+            raise ValueError('Initial state isn\' defined yet')
+    
+    @initial_state.setter
+    def initial_state(self, value: int | list | ndarray) -> None:
+        """initial_state property setter
+        also calculates self._initial_state_cumsum
+
+        raises ValueError
+        """
+        if value is None:
+            return
+
+        self._initial_state = self._verify_initial_state(value)
+        self._initial_state_cumsum = cumsum(self._initial_state)
+
+    def _verify_initial_state(self, value: int | list | ndarray) -> int | ndarray:
+        """returns verified copy of the initial_state
+
+        value: int 
+            should be in range [0, self.shape[0])
+        value: list | ndarray
+            after normalization sum over rows should be close to 1.0
+
+        raises ValueError, TypeError
+        """
+        try:
+            if isinstance(value, (list, ndarray)):
+                if len(value) != self.shape[0]:
+                    raise ValueError('Initial state size should be input size')
+
+                value /= value.sum()[newaxis]         
+
+                if allclose(value.sum(), 1.0):
+                    return array(value, dtype = float32)
+                else:
+                    raise ValueError('Initial state probabilities should normalize to sum 1.0')
+            
+            elif isinstance(value, int):
+                if value < 0 or value >= self.shape[0]:
+                    raise ValueError(f'Invalid initial state: int {value}')
+                else:
+                    return value
+            else:
+                raise TypeError('Initial state should be the type of either int, list or numpy.ndarray')
+        except (ValueError, TypeError) as err:
+            print(value)
+            raise err
 
     def __hash__(self) -> int:
         """returns self._id"""
         return self._id
     
+    def _initial(self, pick: float) -> int:
+        """defines rule for initial state
+
+        Parameters:
+        pick: float
+            should be random value uniform in range [0, 1)
+        """
+
+        if isinstance(self.initial_state, ndarray):
+            accumulated = self._initial_state_cumsum
+            for i, value in enumerate(accumulated):
+                if pick < value:
+                    return i
+            else: 
+                raise ValueError('pick is higher than the last element of accumulated')    
+        else:
+            return self.initial_state
+
+    def _transition(self, state: int, pick: float) -> int:
+        """defines rule for the next state
+
+        Parameters:
+        state: int 
+            next state may depend on a given state
+        pick: float
+            should be random value uniform in range [0, 1)
+        """
+        accumulated = self._matrix_cumsum[state]
+        for i, value in enumerate(accumulated):
+            if pick < value:
+                return i
+        else: 
+            print(pick, accumulated)
+            raise ValueError('pick is higher than the last element of accumulated')
+
     def variant(self, **kwargs) -> Self:
         """returns modified copy
 
@@ -174,6 +282,7 @@ class Description:
         if rng is None:
             rng = default_rng(seed_)
         self.matrix = rng.random(self.shape)
+        self.initial_state = rng.random(self.shape[0])
         return self
     
 class Markov(Description):
@@ -182,30 +291,18 @@ class Markov(Description):
     Properties:
     dimension: int
         size of the state space
-    initial_state: int | ndarray
-        initial distribution of a process
-
-    Attributes:
-    _initial_state: int | ndarray = None
-    _initial_state_cum_sum: ndarray = None
-        precalculated values for picking algorithm
 
     Methods:
-    __init__(self, dimension: int, my_seed: int)
-        constructor setting dimension and my_seed
-    _verify_initial_state(self, value: int | ndarray) -> int | ndarray
-        returns verified copy of an initial state
-    fill_random(self, seed_: int, rng: Generator = None) -> Self:
-        extends Description.fill_random and generates initial_state
+    __init__(self, dimension, my_seed, matrix, initial_state)
+        constructor setting dimension, matrix, my_seed, initial_state
+
+    This exists just for making sure input and output sizes are the same
     """
 
     def __init__(self, dimension: int = None, my_seed: int = None, 
-                 matrix: ndarray = None, initial_state: ndarray = None):
+                 matrix: ndarray = None, initial_state: int | ndarray = None):
         """constructor setting dimension and my_seed"""
-        super().__init__((dimension, dimension), my_seed, matrix)
-        self._initial_state: int | ndarray = None
-        self.initial_state = initial_state
-        self._initial_state_cumsum: ndarray = None
+        super().__init__((dimension, dimension), my_seed, matrix, initial_state)
 
     @property
     def dimension(self) -> int:
@@ -230,66 +327,3 @@ class Markov(Description):
             self.shape = (value, value)
         except ValueError as err:
             raise err
-
-    @property
-    def initial_state(self) -> int | ndarray:
-        """initial distribution of a process
-
-        raises ValueError
-        """
-        if self._initial_state is not None:
-            return copy(self._initial_state)
-        else:
-            raise ValueError('Initial state isn\' defined yet')
-    
-    @initial_state.setter
-    def initial_state(self, value: int | list | ndarray) -> None:
-        """initial_state property setter
-        also calculates self._initial_state_cumsum
-
-        raises ValueError
-        """
-        self._initial_state = self._verify_initial_state(value)
-        self._initial_state_cumsum = cumsum(self._initial_state)
-
-    def _verify_initial_state(self, value: int | list | ndarray) -> int | ndarray:
-        """returns verified copy of the initial_state
-
-        value: int 
-            should be in range [0, self._dimension)
-        value: list | ndarray
-            after normalization sum over rows should be close to 1.0
-
-        raises ValueError, TypeError
-        """
-        try:
-            if isinstance(value, (list, ndarray)):
-                if len(value) != self.dimension:
-                    raise ValueError('Initial state dimension should be equal to the original dimension')
-
-                value /= value.sum()[newaxis]         
-
-                if allclose(value.sum(), 1.0):
-                    return array(value, dtype = float32)
-                else:
-                    raise ValueError('Initial state probabilities should normalize to sum 1.0')
-            
-            elif isinstance(value, int):
-                if value < 0 or value >= self.dimension:
-                    raise ValueError(f'Invalid initial state: int {value}')
-                else:
-                    return value
-            else:
-                raise TypeError('Initial state should be the type of either int, list or numpy.ndarray')
-        except (ValueError, TypeError) as err:
-            raise err
-
-    def fill_random(self, seed_: int = None, rng: Generator = None) -> Self:
-        """extends Description.fill_random and generates random initial_state
-        
-        Returns self
-        """
-        if rng is None:
-            rng = default_rng(seed_)
-        self.initial_state = rng.random(self.dimension)
-        return super().fill_random(seed_, rng)
