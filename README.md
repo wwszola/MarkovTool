@@ -121,18 +121,18 @@ Present in stat module
 - parallel is itertools.zip_longest? : kinda, firing order if they depend on themselves
 - just use itertools to get the result you want
 ## TODO
-- Dependent(p1, Endless(p2)) - check for sizes 
-- manual description is just iterable
-- correct firing order for MODEL
-- stat module: 
-- - should instances keep history thrhemselves??
-- - look at emit, closed collectors, ckecking for deleted references
-- - ALL KINDS OF ANALYIS TOOL
-- - collector pretty summary, count, ...
-- docstrings: 
-- - _initial and _transition in Description
-- - and _pick in instance
-- - dependent
-- tests: description -> instance -> stat
-- load from file: we want json maybe?
+### __version _0.2___
+- manual instance
+- fit !!
+- model: parallel, correct firing order for dependence
+- better collector:
+- - put uses references for instance too
+- - retrieving data using description or instance
+- - pretty summary 
+- - counting occurences, pairs, triples
 - package distribution using setuptools
+- load from file: we want json maybe?
+### coming next
+- docstrings: 
+- - 
+- tests: description -> instance -> stat
