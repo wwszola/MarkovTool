@@ -116,22 +116,23 @@ print(instance.take(10))
 `Collector` allows to gather all instances running in a manner that takes into a consideration parallel branches, but no duplicates will be present. 
 Present in stat module
 
-### A game?
-__HAS NOT BEEN REFACTORED YET__
-- example `examples/game.py` presents simple game where you bet and claim rewards for guessing the state
 
 ## Notes
-- parallel is itertools.zip_longest??
+- parallel is itertools.zip_longest? : kinda, firing order if they depend on themselves
 - just use itertools to get the result you want
 ## TODO
-- picking next and initial defined in description
-- instance should work for all descriptions
 - Dependent(p1, Endless(p2)) - check for sizes 
-- manual description without matrix and my_seed: abstract one layer more??
-- model consists of first Endless layer and Dependent layers: 
-- stat module: collector pretty summary, count, ...
+- manual description is just iterable
+- correct firing order for MODEL
+- stat module: 
+- - should instances keep history thrhemselves??
+- - look at emit, closed collectors, ckecking for deleted references
+- - ALL KINDS OF ANALYIS TOOL
+- - collector pretty summary, count, ...
 - docstrings: 
-- - _
+- - _initial and _transition in Description
+- - and _pick in instance
+- - dependent
 - tests: description -> instance -> stat
-- load from file: we want json, really?
+- load from file: we want json maybe?
 - package distribution using setuptools
