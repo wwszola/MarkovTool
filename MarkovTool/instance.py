@@ -5,7 +5,7 @@ from numpy import ndarray, cumsum
 from numpy.random import Generator, default_rng
 from itertools import islice
 
-from .description import Markov
+from .description import Description
 from .stat import Collector
 
 class Endless(Iterable):
@@ -24,7 +24,7 @@ class Endless(Iterable):
         on next next the effect executes
     
     Attributes:
-    _description: Markov
+    _description: Description
     _state: int = -1
         last state generated
     _forced_state: int = None
@@ -37,7 +37,7 @@ class Endless(Iterable):
     _id: int
 
     Methods:
-    __init__(self, description: Markov)
+    __init__(self, description: Description)
         constructor creating new instance from description
     __eq__(self, other: Self) -> bool
         equal if _description, _step and _state are all equal 
@@ -48,9 +48,9 @@ class Endless(Iterable):
     _emit(self, step: int, state: int) -> None
         put a new entry in all from self._collectors
     _pick_initial_state(self) -> int
-        returns a state based on self._description._initial_state
+        uses self._description._initial as rule 
     _pick_next_state(self) -> int
-        returns new state based on current state and self._description._matrix
+        uses self._description._transition as rule, calling with self.state
     __iter__(self) -> Self
         return self
     __next__(self) -> int
@@ -71,7 +71,7 @@ class Endless(Iterable):
         Endless._count += 1
         return id
     
-    def __init__(self, description: Markov) -> None:
+    def __init__(self, description: Description) -> None:
         """constructor creating new instance from description"""
         self._description = description
         self._state: int = -1
@@ -86,7 +86,10 @@ class Endless(Iterable):
     @property
     def state(self) -> int:
         """returns last state generated"""
-        return self._state
+        if self._state >= 0:
+            return self._state
+        else:
+            raise ValueError('No state generated yet')
 
     @state.setter 
     def state(self, value: int) -> None:
@@ -117,38 +120,31 @@ class Endless(Iterable):
         if len(self._collectors) == 0:
             return
         else:
+            closed = []
             for collector in self._collectors:
-                collector.put(self._description, self._id, step, state)
-
+                if collector._is_open:
+                    collector.put(self._description, self._id, step, state)
+                else:
+                    closed.append(collector)
+            for collector in closed:
+                self._unbind_collector(collector)
+                    
     def _pick_initial_state(self) -> int:
-        """returns a state based on self._description._initial_state
+        """uses self._description._initial as rule 
         
         uses numpy.random.default_rng(None)
         """
-        if isinstance(self._description.initial_state, ndarray):
-            rng = default_rng(None)
-            pick: float = rng.random()
-            accumulated = self._description._initial_state_cumsum
-            for i, value in enumerate(accumulated):
-                if pick < value:
-                    return i
-            else: raise ValueError('pick is higher than the last element of accumulated')    
-        else:
-            return self._description.initial_state
+        rng = default_rng(None)
+        pick: float = rng.random()
+        return self._description._initial(pick)
 
     def _pick_next_state(self) -> int:
-        """returns new state based on current state and self._description._matrix
+        """uses self._description._transition as rule, calling with self.state 
 
         uses self._state_rng
         """
         pick: float = self._state_rng.random()
-        accumulated = self._description._matrix_cumsum[self._state]
-        for i, value in enumerate(accumulated):
-            if pick < value:
-                return i
-        else: 
-            print(pick ,accumulated)
-            raise ValueError('pick is higher than the last element of accumulated')
+        return self._description._transition(self._state, pick)
 
     def __iter__(self) -> Self:
         return self
@@ -197,7 +193,7 @@ class Endless(Iterable):
         
         new _state_rng will be a deepcopy of self._state_rng
         pass property name and desired value as keyword arguments
-        use properties from Markov to assign a variant description
+        use properties from Description to assign a variant description
         branched instances preserve collectors, thus emitting without binding
         """
         new = copy(self)
@@ -225,12 +221,12 @@ class Finite(Endless):
     __next__(self) -> int:
         check self._stop_predicate and call Endless.__next__
     """
-    def __init__(self, description: Markov,
+    def __init__(self, description: Description,
                  stop_predicate: Callable[[Self], bool] = lambda self: False):
         """extends Endless.__init__ and sets stop_predicate
         
         Parameters:
-        description: Markov
+        description: Description
             passed to Endless.__init__
         stop_predicate: Callable[[Self], bool]
             defaults to lambda self: False
@@ -244,6 +240,61 @@ class Finite(Endless):
 
     def __next__(self) -> int:
         """check self._stop_predicate and call Endless.__next__"""
-        if self._stop_predicate(self):
+        if self._step > 0 and self._stop_predicate(self):
             raise StopIteration
         return super().__next__()
+
+class Dependent(Endless):
+    """inherits from Endless
+    uses self._parent.state as an input
+    
+    Properties:
+    parent: Endless
+        an instance whose state is used as an input state
+
+    Attributes:
+    _parent: Endless
+
+    Methods:
+    __init__(self, description: Description, parent: Endless)
+        constructor setting description and parent
+    _pick_initial_state() -> int
+        overwrites Endless._pick_initial_state, call self._pick_next_state
+    _pick_next_state()
+        overwrites Endless._pick_next_state, uses transition with self.parent.state
+    """
+    def __init__(self, description: Description, parent: Endless) -> None:
+        super().__init__(description)
+        self._parent: Endless = None
+        self.parent = parent
+
+    @property
+    def parent(self) -> Endless:
+        """an instance whose state is used as an input state"""
+        return self._parent
+
+    @parent.setter
+    def parent(self, value: Endless):
+        """parent setter
+
+        checks that self input space matches value output space
+        raises ValueError otherwise
+        """
+        if value is None:
+            return
+        
+        if self._description.shape[0] == value._description.shape[1]:
+            self._parent = value
+        else:
+            raise ValueError("Parent output size should match input size")
+
+    def _pick_initial_state(self) -> int:
+        """overwrites Endless._pick_initial_state, call self._pick_next_state
+        """
+        return self._pick_next_state()
+
+    def _pick_next_state(self) -> int:
+        """overwrites Endless._pick_next_state, uses transition with self.parent.state
+        """
+        pick: float = self._state_rng.random()
+        return self._description._transition(self._parent.state, pick)
