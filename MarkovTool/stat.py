@@ -1,6 +1,5 @@
+from typing import Hashable
 from numpy import ndarray, array, bincount
-
-from .description import Description
 
 class Collector:
     """Gathers states emitted by instances
@@ -27,7 +26,7 @@ class Collector:
         start accepting entries and bind self to instances
     close(self)
         stop accepting entries
-    put(self, d: Description, id, step, state) -> bool
+    put(self, desc: Description, id: int, step, state) -> bool
         try to make a new entry
     
     Valid instances:
@@ -49,7 +48,8 @@ class Collector:
         *instances
             see Valid instances in Collector.__doc__ 
         """
-        self._entries: dict[Description, dict[tuple[int, int], list[int]]] = {}
+        self._entries: dict[Hashable, dict[tuple[id, int], list[int]]] = {}
+        self._partial: dict[tuple[id, int], list[int]] = {}
         self._is_open: bool = True
         self._id = Collector._gen_id()
         self.open(*instances)
@@ -73,41 +73,41 @@ class Collector:
         """Stop accepting entries"""
         self._is_open = False
 
-    def put(self, d: Description, id: int, step: int, state: int) -> bool:
+    def put(self, id: int, step: int, state: int, backend = None) -> bool:
         """Try to make a new entry
 
         Makes sure no duplicates are present.
-        The entry is accepted if self._is_open == True, d._my_seed is not None,
+        The entry is accepted if self._is_open == True,
         and one of the following is also True:
         - a chunk exists that was started by the same instance,
         and awaits new value at the correct step
         - no value in any chunk exists that could be 
         matched correctly to the entry
         Parameters:
-        d: Description
-            first key of self._entries dict,
-            d.my_seed must not be None for the entry to be accepted
-        id: int
-        step: int
-            tuple (id, step) is used as second key of self._entries
-        state: int
-            value appended to an existing or new chunk
+        TODO
         Returns:
         True if the entry has been accepted, False otherwise 
         """
         if not self._is_open:
             return False        
-        if d.my_seed is None:
-            return False
 
-        if d not in self._entries:
-            self._entries[d] = dict()
-        for (id_, step_), chunk in self._entries[d].items():
+        group: dict = None
+
+        if backend is None:
+            group = self._partial
+        else:
+            if backend not in self._entries:
+                self._entries[backend] = dict()
+            group = self._entries[backend]
+
+        for (id_, step_), chunk in group.items():
             if id == id_:            
                 if step_ + len(chunk) == step:
                     chunk.append(state)
                     return True
             elif step_ <= step < step_ + len(chunk) and chunk[step - step_] == state:
                 return False
-        self._entries[d][(id, step)] = [state]
+
+        group[(id, step)] = [state]
+
         return True
