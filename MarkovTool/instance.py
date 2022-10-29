@@ -20,12 +20,15 @@ class Instance(Iterable):
         returns new unique id
 
     Properties:
+    has_stopped: bool
+        True if StopIteration has been raised
     state: int
         last state generated
         .setter assign to self._forced_state 
         on next next the effect executes
     
     Attributes:
+    _has_stopped: bool = False
     _state: int = -1
         last state generated
     _forced_state: int = None
@@ -70,6 +73,7 @@ class Instance(Iterable):
     
     def __init__(self) -> None:
         """constructor creating new instance from description"""
+        self._has_stopped: bool = False
         self._state: int = None
         self._forced_state: int = None
         self._step: int = 0
@@ -77,6 +81,12 @@ class Instance(Iterable):
         self._collectors: set[Collector] = set()
 
         self._id = Instance._gen_id()
+
+    @property
+    def has_stopped(self) -> bool:
+        """True if StopIteration has been raised
+        """
+        return self._has_stopped
 
     @property
     def state(self) -> int:
@@ -309,6 +319,7 @@ class Finite(Endless):
     def __next__(self) -> int:
         """check self._stop_predicate and call Endless.__next__"""
         if self._step > 0 and self._stop_predicate(self):
+            self._has_stopped = True
             raise StopIteration
         return super().__next__()
 
@@ -366,3 +377,10 @@ class Dependent(Endless):
         """
         pick: float = self._state_rng.random()
         return self._description._transition(self._parent.state, pick)
+    
+    def __next__(self) -> int:
+        if self._parent.has_stopped:
+            self._has_stopped = True
+            raise StopIteration()
+        
+        return super().__next__() 
