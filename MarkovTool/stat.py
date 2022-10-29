@@ -48,8 +48,8 @@ class Collector:
         *instances
             see Valid instances in Collector.__doc__ 
         """
-        self._entries: dict[Hashable, dict[tuple[id, int], list[int]]] = {}
-        self._partial: dict[tuple[id, int], list[int]] = {}
+        self._entries: dict[Hashable, list[tuple[int, int, list[int]]]] = {}
+        self._partial: list[tuple[int, int, list[int]]] = {}
         self._is_open: bool = True
         self._id = Collector._gen_id()
         self.open(*instances)
@@ -91,23 +91,25 @@ class Collector:
         if not self._is_open:
             return False        
 
-        group: dict = None
+        group: list = None
 
         if backend is None:
             group = self._partial
         else:
-            if backend not in self._entries:
-                self._entries[backend] = dict()
-            group = self._entries[backend]
+            group = self._entries.setdefault(backend, list())
 
-        for (id_, step_), chunk in group.items():
+        insert_index = 0
+        for id_, step_, chunk in group:
             if id == id_:            
                 if step_ + len(chunk) == step:
                     chunk.append(state)
                     return True
             elif step_ <= step < step_ + len(chunk) and chunk[step - step_] == state:
                 return False
-
-        group[(id, step)] = [state]
+    
+            if step_ < step:
+                insert_index += 1
+            
+        group.insert(insert_index, (id, step, [state]))
 
         return True
