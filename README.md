@@ -122,17 +122,16 @@ Present in stat module
 - just use itertools to get the result you want
 ## TODO
 ### __version _0.2___
+- __docstrings Collector__
 - manual instance
-- fit !!
-- model: parallel, correct firing order for dependence
+- - redirecting while branching??
 - better collector:
-- - put uses references for instance too
-- - retrieving data using description or instance
+- - playback - iterable just finding way
 - - pretty summary 
 - - counting occurences, pairs, triples
+- fit !!
+- model: parallel, correct firing order for dependence
 - package distribution using setuptools
 - load from file: we want json maybe?
 ### coming next
-- docstrings: 
-- - 
 - tests: description -> instance -> stat
