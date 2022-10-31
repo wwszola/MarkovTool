@@ -77,6 +77,11 @@ class Description():
         self._initial_state_cumsum: ndarray = None
         self.initial_state = initial_state
 
+    def __str__(self) -> str:
+        name = type(self).__name__
+        shape = str(self.shape)
+        return f'{name: >8}:{self._id: <8}\n{self.my_seed: >4} {shape: >8}' 
+
     @property
     def shape(self) -> tuple[int]:
         """input x output size of state space
