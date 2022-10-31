@@ -1,4 +1,7 @@
-__pycache__
-.pytest_cache
-build
 venv
+__pycache__
+
+.pytest_cache
+
+.vscode
+build
