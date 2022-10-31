@@ -48,8 +48,7 @@ class Collector:
         *instances
             see Valid instances in Collector.__doc__ 
         """
-        self._entries: dict[Hashable, list[tuple[int, int, list[int]]]] = {}
-        self._partial: list[tuple[int, int, list[int]]] = {}
+        self._entries: dict[Hashable, dict[int, list[list[str | int]]]] = {}
         self._is_open: bool = True
         self._id = Collector._gen_id()
         self.open(*instances)
@@ -73,6 +72,56 @@ class Collector:
         """Stop accepting entries"""
         self._is_open = False
 
+    def _redirect(self, a: int, b: int, backend: Hashable) -> int:
+        group = self._entries.get(backend, None)
+        if not group or a not in group:
+            return False
+        tape = group.setdefault(b, ['_'])
+        tape.append(['REF', a, self._length(a, backend)])
+        return False
+    
+    def _length(self, id: int, backend: Hashable) -> int:
+        group = self._entries.get(backend, None)
+        if not group:
+            return None, id
+        
+        counter, d = 0, 0
+        for x in group[id]:
+            match x[0]:
+                case 'RAW':
+                    d = len(x) - 1
+                case 'REF':
+                    d = x[2]
+                case _:
+                    d = 0
+            counter += d
+        return counter
+
+    def _retrieve(self, id: int, step: id, backend: Hashable) -> tuple[int, int]:
+        group = self._entries.get(backend, None)
+        if not group:
+            return None, id
+        
+        counter, d = 0, 0
+        it = iter(group[id])
+        x = next(it, None)
+        while x:
+            match x[0]:
+                case 'RAW':
+                    d = len(x) - 1
+                    if counter + d > step:
+                        return x[step - counter + 1], id
+                case 'REF':
+                    d = x[2]
+                    if counter + d > step:
+                        id = x[1]              
+                        it = iter(group[id])
+                case _:
+                    d = 0
+            counter += d
+            x = next(it, None)
+        return None, id
+
     def put(self, id: int, step: int, state: int, backend = None) -> bool:
         """Try to make a new entry
 
@@ -91,25 +140,24 @@ class Collector:
         if not self._is_open:
             return False        
 
-        group: list = None
-
         if backend is None:
-            group = self._partial
+            backend = '__EMPTY__'
+
+        group = self._entries.setdefault(backend, dict())
+        tape = group.setdefault(id, [['_']])
+
+        matches = list(filter(lambda entry: entry[0] is not None and entry[0] == state, 
+                             [self._retrieve(id, step, backend) for id in group.keys()]))
+
+        if matches:
+            if tape[-1][0] == 'REF' and tape[-1][1] in [m[1] for m in matches]:
+                tape[-1][2] += 1
+            else:
+                tape.append(['REF', matches[0][1], 1])
+            return False
         else:
-            group = self._entries.setdefault(backend, list())
-
-        insert_index = 0
-        for id_, step_, chunk in group:
-            if id == id_:            
-                if step_ + len(chunk) == step:
-                    chunk.append(state)
-                    return True
-            elif step_ <= step < step_ + len(chunk) and chunk[step - step_] == state:
-                return False
-    
-            if step_ < step:
-                insert_index += 1
-            
-        group.insert(insert_index, (id, step, [state]))
-
-        return True
+            if tape[-1][0] == 'RAW':
+                tape[-1].append(state)
+            else:
+                tape.append(['RAW', state])
+            return True
