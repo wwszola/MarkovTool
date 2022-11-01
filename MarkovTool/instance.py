@@ -41,6 +41,10 @@ class Instance(Iterable):
     Methods:
     __init__(self)
         constructor creating new instance
+    __hash__(self) -> int
+        returns self._id
+    __eq__(self) -> bool
+        uses hash equality
     _verify_state(self, value: int) -> int
         abstract; should return veirified value
     _bind_collector(self, collector: Collector) -> None
@@ -82,6 +86,14 @@ class Instance(Iterable):
 
         self._id = Instance._gen_id()
 
+    def __hash__(self) -> int:
+        """Returns self._id"""
+        return self._id    
+
+    def __eq__(self, other: Self) -> bool:
+        """uses hash equality"""
+        return type(self) == type(other) and hash(self) == hash(other)
+
     @property
     def has_stopped(self) -> bool:
         """True if StopIteration has been raised
@@ -121,7 +133,7 @@ class Instance(Iterable):
 
     def _entry(self) -> dict:
         """creates entry for emitting"""
-        return {'backend': None, 'id': self._id, 'step': self._step, 'state': self._state}
+        return {'backend': None, 'instance': self, 'step': self._step, 'state': self._state}
 
     def _emit(self) -> None:
         """put a new entry in all from self._collectors"""
@@ -221,11 +233,6 @@ class Endless(Instance):
         self._description = description
         self._state_rng: Generator = default_rng(self._description.my_seed)
 
-    def __eq__(self, other: Self) -> bool:
-        """equal if _description, _step and _state are all equal"""
-        return self._description == other._description \
-           and self._step == other._step \
-           and self._state == other._state
 
     def _verify_state(self, value: int) -> int:
         """return verified state"""
