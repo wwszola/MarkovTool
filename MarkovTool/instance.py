@@ -211,6 +211,16 @@ class Instance(Iterable):
         if 'state' in kwargs:
             new.state = kwargs['state']
             del kwargs['state']
+
+        closed = []
+        for c in self._collectors:
+            if c._is_open:
+                c._redirect(self, new, self._entry()['backend'])
+            else:
+                closed.append(c)
+        for c in closed:
+            self._unbind_collector(c)
+                    
         return new 
 
 class Endless(Instance):
