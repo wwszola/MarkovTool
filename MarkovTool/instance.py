@@ -45,6 +45,8 @@ class Instance(Iterable):
         returns self._id
     __eq__(self) -> bool
         uses hash equality
+    __str__(self) -> str
+    __repr__(self) -> str
     _verify_state(self, value: int) -> int
         abstract; should return veirified value
     _bind_collector(self, collector: Collector) -> None
@@ -93,6 +95,14 @@ class Instance(Iterable):
     def __eq__(self, other: Self) -> bool:
         """uses hash equality"""
         return type(self) == type(other) and hash(self) == hash(other)
+
+    def __str__(self) -> str:
+        name = type(self).__name__
+        return f'{name}:{self._id} ({self._step} {self._state})'
+
+    def __repr__(self) -> str:
+        name = type(self).__name__
+        return f'{name}(_id: {self._id})'
 
     @property
     def has_stopped(self) -> bool:

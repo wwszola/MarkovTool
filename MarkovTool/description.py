@@ -35,12 +35,16 @@ class Description():
     Methods:
     __init__(self, shape, my_seed, matrix, initial_state)
         constructor setting shape, my_seed, matrix and initial_state
+    __hash__(self) -> int
+        returns self._id
+    __eq__(self) -> bool
+        uses hash equality
+    __str__(self) -> str
+    __repr__(self) -> str
     _verify_matrix(self, value: list[list[float]] | ndarray) -> ndarray
         returns verified copy of the matrix
     _verify_initial_state(self, value: int | ndarray) -> int | ndarray
         returns verified copy of an initial state
-    __hash__(self) -> int
-        returns self._id
     _initial(self, pick: float) -> int
         defines rule for initial state
     _transition(self, state: int, pick: float) -> int
@@ -77,10 +81,22 @@ class Description():
         self._initial_state_cumsum: ndarray = None
         self.initial_state = initial_state
 
+    def __hash__(self) -> int:
+        """returns self._id"""
+        return self._id
+
+    def __eq__(self, other: Self) -> bool:
+        """uses hash equality"""
+        return type(self) == type(other) and hash(self) == hash(other)
+
     def __str__(self) -> str:
         name = type(self).__name__
-        shape = str(self.shape)
-        return f'{name: >8}:{self._id: <8}\n{self.my_seed: >4} {shape: >8}' 
+        shape = str(self._shape)
+        return f'{name}:{self._id} ({self._my_seed} {shape})' 
+
+    def __repr__(self) -> str:
+        name = type(self).__name__
+        return f'{name}(_id: {self._id}, my_seed: {self._my_seed})'
 
     @property
     def shape(self) -> tuple[int]:
@@ -225,10 +241,6 @@ class Description():
         except (ValueError, TypeError) as err:
             print(value)
             raise err
-
-    def __hash__(self) -> int:
-        """returns self._id"""
-        return self._id
     
     def _initial(self, pick: float) -> int:
         """defines rule for initial state
