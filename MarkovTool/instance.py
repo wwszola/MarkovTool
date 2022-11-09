@@ -1,8 +1,6 @@
-from abc import ABC, abstractmethod
 from copy import deepcopy, copy
 from typing import Callable, Iterable
 from typing_extensions import Self
-from numpy import ndarray, cumsum
 from numpy.random import Generator, default_rng
 from itertools import islice
 
@@ -11,7 +9,7 @@ from .stat import Collector
 
 
 class Instance(Iterable):
-    """Abstract instance inherited from Iterable
+    """Representing an empty process
 
     Static:
     _count: int = 0
@@ -97,12 +95,11 @@ class Instance(Iterable):
         return type(self) == type(other) and hash(self) == hash(other)
 
     def __str__(self) -> str:
-        name = type(self).__name__
-        return f'{name}:{self._id} ({self._step} {self._state})'
+        return self.__repr__()
 
     def __repr__(self) -> str:
         name = type(self).__name__
-        return f'{name}(_id: {self._id})'
+        return f'{name}(_id: {self._id}, step: {self._step}, state: {self._state})'
 
     @property
     def has_stopped(self) -> bool:
@@ -126,12 +123,9 @@ class Instance(Iterable):
         value = self._verify_state(value)
         self._forced_state = value
 
-    @abstractmethod
     def _verify_state(self, value: int) -> int:
-        """abstract; should return veirified value
-        raises ValueError for invalid values
-        """
-        pass
+        """returns argument value unchanged"""
+        return value
 
     def _bind_collector(self, collector: Collector) -> None:
         """adds collector to self._collectors"""
@@ -162,9 +156,8 @@ class Instance(Iterable):
     def __iter__(self) -> Self:
         return self
 
-    @abstractmethod
     def __next__(self) -> int:
-        """abstract; pick a new state, emit and return it
+        """pick a new state, emit and return it
 
         extend this method, like that:
         self._state = ...
@@ -179,7 +172,6 @@ class Instance(Iterable):
         self._emit()
         self._step += 1
         return self._state    
-
         
     def take(self, n: int = None) -> list:
         """returns list of next n generated states
