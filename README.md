@@ -125,7 +125,7 @@ Present in stat module
 - fill_random argument if initial_state too
 - manual instance
 - __better collector__:
-- diff
+- - diff
 - - docstrings
 - - pretty summary 
 - - counting occurences, pairs, triples
@@ -133,5 +133,6 @@ Present in stat module
 - model: parallel, correct firing order for dependence
 - package distribution using setuptools
 - load from file: we want json maybe?
-### coming next
+### v 0.3
+- benchmark tests, how slow all of it is?
 - tests: description -> instance -> stat
