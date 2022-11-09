@@ -1,5 +1,44 @@
+from dataclasses import dataclass, field
+from enum import Enum
 from typing import Hashable
-from numpy import ndarray, array, bincount
+from collections.abc import Generator
+
+class ChunkType(Enum):
+    """Enum class, use this as a pattern for matching"""
+    RAW = 0
+    REF = 1
+
+@dataclass
+class ChunkRaw:
+    """dataclass storing raw values in a chunk
+    
+    Attributes:
+    start: int
+        step of the first state in a chunk
+    data: list[int]
+    type_: ChunkType
+    """
+    start: int
+    data: list[int]
+    type_: ChunkType = field(default = ChunkType.RAW, init = False)
+
+@dataclass
+class ChunkRef:
+    """dataclass referencing a ChunkRaw
+    
+    Attributes:
+    start: int
+        step of the first state in a chunk
+    point_to: ChunkRaw
+        chunk of data referenced
+    length: int
+        how much is referenced
+    type_: ChunkType
+    """
+    start: int
+    point_to: ChunkRaw
+    length: int
+    type_: ChunkType = field(default = ChunkType.REF, init = False)
 
 class Collector:
     """Gathers states emitted by instances
@@ -26,6 +65,7 @@ class Collector:
         start accepting entries and bind self to instances
     close(self)
         stop accepting entries
+    _length(self, id: int, backend)
     put(self, desc: Description, id: int, step, state) -> bool
         try to make a new entry
     
@@ -48,7 +88,8 @@ class Collector:
         *instances
             see Valid instances in Collector.__doc__ 
         """
-        self._entries: dict[Hashable, dict[int, list[list[str | int]]]] = {}
+        self._entries: dict[Hashable, dict[Hashable, list[ChunkRef | ChunkRaw]]] = {}
+        self._entries['__EMPTY__'] = {}
         self._is_open: bool = True
         self._id = Collector._gen_id()
         self.open(*instances)
@@ -72,57 +113,109 @@ class Collector:
         """Stop accepting entries"""
         self._is_open = False
 
-    def _redirect(self, a: int, b: int, backend: Hashable) -> int:
+    def _redirect(self, src: Hashable, dst: Hashable, backend: Hashable) -> bool:
+        """copy entries of src as emitted by dst
+        
+        Parameters:
+        src: Hashable
+            instance to copy entries from
+        dst: Hashable
+            instance to put entries into
+        """
         group = self._entries.get(backend, None)
-        if not group or a not in group:
+        if not group or src not in group:
             return False
-        tape = group.setdefault(b, ['_'])
-        tape.append(['REF', a, self._length(a, backend)])
-        return False
+
+        src_tape = group[src]
+        dst_tape = group.setdefault(dst, [])
+        for chunk in src_tape:
+            match chunk.type_:
+                case ChunkType.REF:
+                    dst_tape.append(chunk)
+                case ChunkType.RAW:
+                    dst_tape.append(ChunkRef(chunk.start, chunk, len(chunk.data)))
+        return True
     
-    def _length(self, id: int, backend: Hashable) -> int:
+    def length(self, instance: Hashable, backend: Hashable = None) -> int:
+        """returns """
+        if backend is None:
+            backend = '__EMPTY__'
+
         group = self._entries.get(backend, None)
         if not group:
-            return None, id
+            return None
         
-        counter, d = 0, 0
-        for x in group[id]:
-            match x[0]:
-                case 'RAW':
-                    d = len(x) - 1
-                case 'REF':
-                    d = x[2]
-                case _:
-                    d = 0
-            counter += d
-        return counter
+        tape = group.get(instance, None)
+        if not group:
+            return None
 
-    def _retrieve(self, id: int, step: id, backend: Hashable) -> tuple[int, int]:
+        last = tape[-1]
+        match last.type_:
+            case ChunkType.RAW:
+                return last.start + len(last.data)
+            case ChunkType.RAW:
+                return last.start + last.length
+
+    def _retrieve(self, instance: Hashable, step: int, backend: Hashable) -> int:
         group = self._entries.get(backend, None)
         if not group:
-            return None, id
+            return None
         
-        counter, d = 0, 0
-        it = iter(group[id])
-        x = next(it, None)
-        while x:
-            match x[0]:
-                case 'RAW':
-                    d = len(x) - 1
-                    if counter + d > step:
-                        return x[step - counter + 1], id
-                case 'REF':
-                    d = x[2]
-                    if counter + d > step:
-                        id = x[1]              
-                        it = iter(group[id])
-                case _:
-                    d = 0
-            counter += d
-            x = next(it, None)
-        return None, id
+        tape = group.get(instance, None)
+        if not group:
+            return None
+        
+        for chunk in tape:
+            match chunk.type_:
+                case ChunkType.RAW:
+                    if chunk.start + len(chunk.data) > step:
+                        return chunk.data[step - chunk.start]
+                case ChunkType.REF:
+                    if chunk.start + chunk.length > step:
+                        return chunk.point_to.data[step - chunk.start]
 
-    def put(self, id: int, step: int, state: int, backend = None) -> bool:
+        return None
+
+    def _match(self, instance: Hashable, step: int, state: int, backend: Hashable) -> tuple[int, int]:
+        group = self._entries.get(backend, None)
+        if not group:
+            return None
+        
+        tape = group.get(instance, None)
+        if not group:
+            return None
+        
+        for chunk in tape:
+            if chunk.type_ == ChunkType.RAW and chunk.start + len(chunk.data) > step:
+                return chunk if chunk.data[step - chunk.start] == state else None
+        
+        return None
+
+    def playback(self, instance: Hashable, backend: Hashable = None) -> Generator:
+        if backend is None:
+            backend = '__EMPTY__'
+        
+        group = self._entries.get(backend, None)
+        if not group:
+            return None
+
+        tape = group.get(instance, None)
+        if not tape:
+            return None
+
+        for chunk in tape:
+            match chunk.type_:
+                case ChunkType.RAW:
+                    for state in chunk.data:
+                        yield state
+                case ChunkType.REF:
+                    raw = chunk.point_to
+                    start = chunk.start - raw.start
+                    for state in raw.data[start : start + chunk.length]:
+                        yield state
+        return None
+
+    def put(self, instance: Hashable, step: int, state: int, backend: Hashable = None) -> bool:
         """Try to make a new entry
 
         Makes sure no duplicates are present.
@@ -144,20 +237,31 @@ class Collector:
             backend = '__EMPTY__'
 
         group = self._entries.setdefault(backend, dict())
-        tape = group.setdefault(id, [['_']])
+        tape = group.setdefault(instance, [])
 
-        matches = list(filter(lambda entry: entry[0] is not None and entry[0] == state, 
-                             [self._retrieve(id, step, backend) for id in group.keys()]))
+        matches = list(filter(
+            lambda chunk: chunk is not None,
+            [self._match(instance_, step, state, backend) for instance_ in group.keys() if instance != instance_]
+        ))
+        raw = matches[0] if matches else None
 
-        if matches:
-            if tape[-1][0] == 'REF' and tape[-1][1] in [m[1] for m in matches]:
-                tape[-1][2] += 1
+        if not tape:
+            if raw:
+                tape.append(ChunkRef(step, raw, 1))
             else:
-                tape.append(['REF', matches[0][1], 1])
-            return False
-        else:
-            if tape[-1][0] == 'RAW':
-                tape[-1].append(state)
-            else:
-                tape.append(['RAW', state])
+                tape.append(ChunkRaw(step, [state]))
             return True
+
+        last = tape[-1]
+        match last.type_, bool(raw):
+            case [ChunkType.REF, True]:
+                if last.point_to is raw:
+                    last.length += 1
+            case [ChunkType.RAW, True]:
+                tape.append(ChunkRef(step, raw, 1))
+            case [ChunkType.REF, False]:
+                tape.append(ChunkRaw(step, [state]))
+            case [ChunkType.RAW, False]:
+                last.data.append(state)
+            
+        return True
