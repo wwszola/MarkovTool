@@ -1,21 +1,52 @@
+import itertools
+from sys import stdout
+from time import sleep
 from MarkovTool import *
 
 from numpy import identity, ones, triu
-
-source = Markov(
-    dimension = 3, 
-    my_seed = 1,
-    matrix = 1.0 - identity(3), # states not repeating
+from copy import copy
+from os import system
+from time import time
+# loop of 0, 1, 2, 3
+mat_clock4 = [
+    [0, 1, 0, 0], 
+    [0, 0, 1, 0],
+    [0, 0, 0, 1],
+    [1, 0, 0, 0]
+]
+clock = Markov(
+    dimension = 4, 
+    matrix = mat_clock4,
     initial_state = 0)
+time_process = Endless(clock) 
 
-emmision1 = Description(
-    shape = (3, 5),
-    my_seed = 2,
-    matrix = triu(ones((3, 5)), 1)) # emitted state > input state always
+# applying probabilisitc noise to the clock
+small_noise = [
+    [15,  1,  1,  1],
+    [ 1, 15,  1,  1],
+    [ 1,  1, 15,  1],
+    [ 1,  1,  1, 15],
+]
+experiment = Markov(
+    dimension = 4,
+    my_seed = 1,
+    matrix = small_noise)
+result = Dependent(experiment, time_process) # input of this instance is a state from time_process
+collector = Collector(time_process, result)
 
-s = Finite(source, lambda self: self._step > 10) 
-e1 = Dependent(emmision1, s)
+FPS = 6
+back = ['[', ' ', ' ', ' ', ' ', ']']
+for t, *rs in itertools.zip_longest(time_process, *[result]*3): # generate 3 results based on single input state
+    time_render = copy(back)
+    time_render[t+1] = 'X'
 
-# this should be called as a model
-for v1, v2 in zip(s, e1):    
-    print(v1, v2)
+    for r in rs:
+        sys_time = time()
+        system('cls||clear')
+        result_render = copy(back)
+        result_render[r+1] = 'X'
+
+        print(''.join(time_render))
+        print(''.join(result_render))
+        stdout.flush()
+        sleep(1/FPS - (time() - sys_time))
