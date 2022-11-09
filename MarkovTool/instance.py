@@ -1,15 +1,16 @@
 from copy import deepcopy, copy
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Hashable
 from typing_extensions import Self
 from numpy.random import Generator, default_rng
 from itertools import islice
 
-from .description import Description
+from .description import Stochastic
 from .stat import Collector
 
 
 class Instance(Iterable):
-    """Representing an empty process
+    """Representing a process specific to a backend
+    A backend needs to be hashable
 
     Static:
     _count: int = 0
@@ -26,6 +27,9 @@ class Instance(Iterable):
         on next next the effect executes
     
     Attributes:
+    _backend: Hashable = None
+        tag representing specific process
+        while extending Instance use that for generating states
     _has_stopped: bool = False
     _state: int = -1
         last state generated
@@ -37,7 +41,7 @@ class Instance(Iterable):
     _id: int
 
     Methods:
-    __init__(self)
+    __init__(self, backend: Hashable = None)
         constructor creating new instance
     __hash__(self) -> int
         returns self._id
@@ -75,8 +79,9 @@ class Instance(Iterable):
         Instance._count += 1
         return id
     
-    def __init__(self) -> None:
-        """constructor creating new instance from description"""
+    def __init__(self, backend: Hashable = None) -> None:
+        """constructor creating new instance"""
+        self._backend: Hashable = backend
         self._has_stopped: bool = False
         self._state: int = None
         self._forced_state: int = None
@@ -91,15 +96,16 @@ class Instance(Iterable):
         return self._id    
 
     def __eq__(self, other: Self) -> bool:
-        """uses hash equality"""
-        return type(self) == type(other) and hash(self) == hash(other)
+        """uses equality of _backend, _step, _state"""
+        return (type(self), self._backend, self._step, self._state) == \
+               (type(other), other._backend, other._step, other._state) 
 
     def __str__(self) -> str:
         return self.__repr__()
 
     def __repr__(self) -> str:
         name = type(self).__name__
-        return f'{name}(_id: {self._id}, step: {self._step}, state: {self._state})'
+        return f'{name}(_id: {self._id}, _backend: {self._backend}, step: {self._step}, state: {self._state})'
 
     @property
     def has_stopped(self) -> bool:
@@ -137,7 +143,7 @@ class Instance(Iterable):
 
     def _entry(self) -> dict:
         """creates entry for emitting"""
-        return {'backend': None, 'instance': self, 'step': self._step, 'state': self._state}
+        return {'backend': self._backend, 'instance': self, 'step': self._step, 'state': self.state}
 
     def _emit(self) -> None:
         """put a new entry in all from self._collectors"""
@@ -219,20 +225,21 @@ class Endless(Instance):
     """inherits from Instance, represents a stochastic process
 
     Attributes:
-    _description: Description
-        behaviour of a process
+    _backend: Stochastic
+        extends Instance._backend
+        describe stochastic behaviour of the process
     _state_rng: numpy.random.Generator = numpy.random.default_rng()
         rng used for transitions
     
     Methods:
-    __init__(self, description: Description)
+    __init__(self, description: Stochastic)
         constructor creating new instance from description, extends Instance.__init__
     _verify_state(self, value: int) -> int
         returns verified value
     _pick_initial_state(self) -> int
-        uses self._description._initial as rule 
+        uses self._backend._initial as rule 
     _pick_next_state(self) -> int
-        uses self._description._transition as rule, calling with self.state
+        uses self._backend._transition as rule, calling with self.state
     _entry(self) -> dict
         extends Instance._entry, assigns description
     __next__(self) -> int
@@ -240,41 +247,32 @@ class Endless(Instance):
     branch(self, **kwargs) -> Self
         extends Instance.branch, assigns _state_rng and correct description
     """
-    def __init__(self, description: Description) -> None:
-        super().__init__()
-        self._description = description
-        self._state_rng: Generator = default_rng(self._description.my_seed)
-
+    def __init__(self, description: Stochastic) -> None:
+        super().__init__(description)
+        self._state_rng: Generator = default_rng(self._backend.my_seed)
 
     def _verify_state(self, value: int) -> int:
         """return verified state"""
-        if value < 0 or value >= self._description.shape[0]:
-            raise ValueError(f'State should be int in range [0, {self._description.dimension})')
+        if value < 0 or value >= self._backend.shape[0]:
+            raise ValueError(f'State should be int in range [0, {self._backend.dimension})')
         return value
 
     def _pick_initial_state(self) -> int:
-        """uses self._description._initial as rule 
+        """uses self._backend._initial as rule 
         
         uses numpy.random.default_rng(None)
         """
         rng = default_rng(None)
         pick: float = rng.random()
-        return self._description._initial(pick)
+        return self._backend._initial(pick)
 
     def _pick_next_state(self) -> int:
-        """uses self._description._transition as rule, calling with self.state 
+        """uses self._backend._transition as rule, calling with self.state 
 
         uses self._state_rng
         """
         pick: float = self._state_rng.random()
-        return self._description._transition(self._state, pick)
-
-    def _entry(self) -> dict:
-        """extends Instance._entry, assigns description"""
-        entry = super()._entry()
-        desc = self._description if self._description.my_seed is not None else None
-        entry['backend'] = desc
-        return entry
+        return self._backend._transition(self._state, pick)
 
     def __next__(self) -> int:
         """extends Instance.__next__
@@ -298,9 +296,9 @@ class Endless(Instance):
         """
         new = super().branch(**kwargs)
         new._state_rng = deepcopy(self._state_rng)
-        kwargs = dict(((k, v) for k, v in kwargs.items() if hasattr(self._description, k)))
+        kwargs = dict(((k, v) for k, v in kwargs.items() if hasattr(self._backend, k)))
         if kwargs:
-            new._description = self._description.variant(**kwargs)
+            new._backend = self._backend.variant(**kwargs)
         return new
 
 class Finite(Endless):
@@ -318,7 +316,7 @@ class Finite(Endless):
     __next__(self) -> int:
         check self._stop_predicate and call Endless.__next__
     """
-    def __init__(self, description: Description,
+    def __init__(self, description: Stochastic,
                  stop_predicate: Callable[[Self], bool] = lambda self: False):
         """extends Endless.__init__ and sets stop_predicate
         
@@ -343,37 +341,37 @@ class Finite(Endless):
         return super().__next__()
 
 class Dependent(Endless):
-    """inherits from Endless
-    uses self._parent.state as an input
+    """inherits from Endless, process with Instance object as input
+    uses self._input.state for transitions
     
     Properties:
-    parent: Endless
+    input: Instance
         an instance whose state is used as an input state
 
     Attributes:
-    _parent: Endless
+    _input: Instance
 
     Methods:
-    __init__(self, description: Description, parent: Endless)
+    __init__(self, description: Stochastic, parent: Instance)
         constructor setting description and parent
     _pick_initial_state() -> int
         overwrites Endless._pick_initial_state, call self._pick_next_state
     _pick_next_state()
         overwrites Endless._pick_next_state, uses transition with self.parent.state
     """
-    def __init__(self, description: Description, parent: Endless) -> None:
+    def __init__(self, description: Stochastic, input: Instance) -> None:
         super().__init__(description)
-        self._parent: Endless = None
-        self.parent = parent
+        self._input: Instance = None
+        self.input = input
 
     @property
-    def parent(self) -> Endless:
+    def input(self) -> Instance:
         """an instance whose state is used as an input state"""
-        return self._parent
+        return self._input
 
-    @parent.setter
-    def parent(self, value: Endless):
-        """parent setter
+    @input.setter
+    def input(self, value: Instance):
+        """input setter
 
         checks that self input space matches value output space
         raises ValueError otherwise
@@ -381,7 +379,7 @@ class Dependent(Endless):
         if value is None:
             return
         
-        if self._description.shape[0] == value._description.shape[1]:
+        if self._backend.shape[0] == value._backend.shape[1]:
             self._parent = value
         else:
             raise ValueError("Parent output size should match input size")
@@ -395,7 +393,7 @@ class Dependent(Endless):
         """overwrites Endless._pick_next_state, uses transition with self.parent.state
         """
         pick: float = self._state_rng.random()
-        return self._description._transition(self._parent.state, pick)
+        return self._backend._transition(self._parent.state, pick)
     
     def __next__(self) -> int:
         if self._parent.has_stopped:
