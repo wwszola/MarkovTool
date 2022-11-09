@@ -1,6 +1,7 @@
-from numpy import array, ndarray, float32, allclose, newaxis, cumsum
+from numpy import array, zeros, ndarray, float32, allclose, newaxis, cumsum
 from numpy.random import default_rng, Generator
 from copy import copy
+from typing import Iterable
 from typing_extensions import Self
 
 class Description():
@@ -90,13 +91,12 @@ class Description():
         return type(self) == type(other) and hash(self) == hash(other)
 
     def __str__(self) -> str:
-        name = type(self).__name__
-        shape = str(self._shape)
-        return f'{name}:{self._id} ({self._my_seed} {shape})' 
+        return self.__repr__() 
 
     def __repr__(self) -> str:
         name = type(self).__name__
-        return f'{name}(_id: {self._id}, my_seed: {self._my_seed})'
+        shape = str(self._shape)
+        return f'{name}(_id: {self._id}, my_seed: {self._my_seed}, shape: {shape})'
 
     @property
     def shape(self) -> tuple[int]:
@@ -302,6 +302,46 @@ class Description():
         self.initial_state = rng.random(self.shape[0])
         return self
     
+    def fit(self, 
+            data: Iterable[tuple[int, int]], 
+            weights: tuple[float, float] = (1.0, 1.0)
+            ):
+        """fit self._matrix values counting state transitions
+        
+        if self._matrix is None, only fitted mat is used
+
+        if weights[0] == 0.0 or self._matrix is None,
+        uniformly distributed values are placed into rows, 
+        for states with no transitions
+        
+        Parameters:
+        data: Iterable[tuple[int, int]]
+            sequence of pairs, representing state transitions
+        weights: tuple[float, float] = (1.0, 1.0)
+            weights for weighted sum of 
+            self.matrix and new matrix fitted to data
+        
+        raises ValueError
+        """
+        mat = zeros(self.shape, int)
+        not_present: set = set(range(self.shape[0]))
+        for prev, now in data:
+            mat[prev, now] += 1
+            not_present.discard(prev)
+        
+        mat = mat.astype(float32)
+        if self._matrix is None or weights[0] == 0.0:
+            for state in not_present:
+                mat[state, :] = 1    
+        if self._matrix is not None:
+            mat *= weights[1]
+            mat += weights[0]*self._matrix
+        
+        try:
+            self.matrix = mat
+        except ValueError as e:
+            raise ValueError('Not enough data to fit') 
+
 class Markov(Description):
     """Dataclass describing a Markov process
     
