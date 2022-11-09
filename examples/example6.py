@@ -1,9 +1,8 @@
-from concurrent.futures import process
-from MarkovTool import Description, Dependent
+from MarkovTool import Stochastic, Dependent
 
 from itertools import islice
 
-process = Description((3, 3), my_seed=5).fill_random()
+process = Stochastic((3, 3), my_seed=5).fill_random()
 
 # tree connection instead of graph model should be sufficient
 # won't work with shape checking in init
