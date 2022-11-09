@@ -15,45 +15,22 @@ class Description():
     Properties:
     shape: tuple[int]
         input x output size of state space  
-    my_seed: int
-        value which seeds the instance of a process
-    matrix: ndarray 
-        probability matrix for a process
-    initial_state: int | ndarray
-        initial distribution of a process
 
     Attributes:
     _id: int
     _shape: tuple[int]
-    _my_seed: int = None
-    _matrix: ndarray = None
-    _matrix_cumsum: ndarray = None
-        precalculated values for picking algorithm
-    _initial_state: int | ndarray = None
-    _initial_state_cum_sum: ndarray = None
-        precalculated values for picking algorithm
 
     Methods:
-    __init__(self, shape, my_seed, matrix, initial_state)
-        constructor setting shape, my_seed, matrix and initial_state
+    __init__(self, shape: tuple[int, int] = None)
+        constructor setting shape
     __hash__(self) -> int
         returns self._id
     __eq__(self) -> bool
         uses hash equality
     __str__(self) -> str
     __repr__(self) -> str
-    _verify_matrix(self, value: list[list[float]] | ndarray) -> ndarray
-        returns verified copy of the matrix
-    _verify_initial_state(self, value: int | ndarray) -> int | ndarray
-        returns verified copy of an initial state
-    _initial(self, pick: float) -> int
-        defines rule for initial state
-    _transition(self, state: int, pick: float) -> int
-        defines rule for the next state
     variant(self, **kwargs) -> Self
         returns modified copy
-    fill_random(self, seed_: int) -> Generator:
-        generates random matrix 
     """
     
     _count: int = 0
@@ -64,23 +41,11 @@ class Description():
         Description._count += 1
         return id
     
-    def __init__(self, shape: tuple[int] = None, my_seed: int = None, 
-                 matrix: ndarray = None, initial_state: int | ndarray = None):
-        """constructor setting shape, my_seed, matrix, initial_state
-
-        all parameters default to None
-        """
+    def __init__(self, shape: tuple[int] = None):
+        """constructor setting shape"""
         self._id = Description._gen_id()
         self._shape: tuple[int] = None
         self.shape = shape
-        self._my_seed: int = None
-        self.my_seed: int = my_seed
-        self._matrix: ndarray = None
-        self._matrix_cumsum: ndarray = None
-        self.matrix = matrix
-        self._initial_state: int | ndarray = None
-        self._initial_state_cumsum: ndarray = None
-        self.initial_state = initial_state
 
     def __hash__(self) -> int:
         """returns self._id"""
@@ -125,7 +90,71 @@ class Description():
         else:
             raise ValueError('Shape must be tuple of two positive integers')
 
+    def variant(self, **kwargs) -> Self:
+        """returns modified copy
 
+        pass property name and desired value as keyword arguments
+        """
+        result = copy(self)
+        self._id = Description._gen_id()
+        for name, value in kwargs.items():
+            if hasattr(result, name):
+                setattr(result, name, value)
+        return result
+
+class Stochastic(Description):
+    """Describes stochastic process, inherits from Description
+    
+    Properties:
+    my_seed: int
+        value which seeds the instance of a process
+    matrix: ndarray 
+        probability matrix for a process
+    initial_state: int | ndarray
+        initial distribution of a process
+
+    Attributes:
+    _my_seed: int = None
+    _matrix: ndarray = None
+    _matrix_cumsum: ndarray = None
+        precalculated values for picking algorithm
+    _initial_state: int | ndarray = None
+    _initial_state_cum_sum: ndarray = None
+        precalculated values for picking algorithm
+
+    Methods:
+    __init__(self, shape, my_seed, matrix, initial_state)
+        constructor setting shape, my_seed, matrix and initial_state
+    _verify_matrix(self, value: list[list[float]] | ndarray) -> ndarray
+        returns verified copy of the matrix
+    _verify_initial_state(self, value: int | ndarray) -> int | ndarray
+        returns verified copy of an initial state
+    _initial(self, pick: float) -> int
+        defines rule for initial state
+    _transition(self, state: int, pick: float) -> int
+        defines rule for the next state 
+    fill_random(self, seed_: int) -> Generator:
+        generates random matrix
+    fit(self, data: Iterable[tuple[int, int]], weights: tuple[float, float] = (1.0, 1.0))
+        fit self._matrix values counting state transitions
+    
+    """
+    def __init__(self, shape: tuple[int] = None, my_seed: int = None, 
+                 matrix: ndarray = None, initial_state: int | ndarray = None):
+        """constructor setting shape, my_seed, matrix, initial_state
+
+        all parameters default to None
+        """
+        super().__init__(shape)
+        self._my_seed: int = None
+        self.my_seed: int = my_seed
+        self._matrix: ndarray = None
+        self._matrix_cumsum: ndarray = None
+        self.matrix = matrix
+        self._initial_state: int | ndarray = None
+        self._initial_state_cumsum: ndarray = None
+        self.initial_state = initial_state
+    
     @property
     def my_seed(self) -> int:
         """value which seeds the instance of a process
@@ -277,18 +306,6 @@ class Description():
             print(pick, accumulated)
             raise ValueError('pick is higher than the last element of accumulated')
 
-    def variant(self, **kwargs) -> Self:
-        """returns modified copy
-
-        pass property name and desired value as keyword arguments
-        """
-        result = copy(self)
-        self._id = Description._gen_id()
-        for name, value in kwargs.items():
-            if hasattr(result, name):
-                setattr(result, name, value)
-        return result
-
     def fill_random(self, seed_: int = None, rng: Generator = None) -> Self:
         """generates random matrix 
         
@@ -301,11 +318,8 @@ class Description():
         self.matrix = rng.random(self.shape)
         self.initial_state = rng.random(self.shape[0])
         return self
-    
-    def fit(self, 
-            data: Iterable[tuple[int, int]], 
-            weights: tuple[float, float] = (1.0, 1.0)
-            ):
+
+    def fit(self, data: Iterable[tuple[int, int]], weights: tuple[float, float] = (1.0, 1.0)):
         """fit self._matrix values counting state transitions
         
         if self._matrix is None, only fitted mat is used
@@ -342,7 +356,7 @@ class Description():
         except ValueError as e:
             raise ValueError('Not enough data to fit') 
 
-class Markov(Description):
+class Markov(Stochastic):
     """Dataclass describing a Markov process
     
     Properties:
