@@ -122,14 +122,14 @@ Present in stat module
 - just use itertools to get the result you want
 ## TODO
 ### __version _0.2___
-- __docstrings Collector__
+- fill_random argument if initial_state too
 - manual instance
-- - redirecting while branching??
-- better collector:
-- - playback - iterable just finding way
+- __better collector__:
+- diff
+- - docstrings
 - - pretty summary 
 - - counting occurences, pairs, triples
-- fit !!
+- - playback: maybe cashe full chunks??
 - model: parallel, correct firing order for dependence
 - package distribution using setuptools
 - load from file: we want json maybe?
