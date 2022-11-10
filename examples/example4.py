@@ -10,5 +10,5 @@ f.skip(5), g.skip(5)
 g.state = 4
 f.skip(), g.skip()
 c.close()
-print(list(c.playback(f, d)))
-print(list(c.playback(g, d)))
+print(list(c.playback(f)))
+print(list(c.playback(g)))
