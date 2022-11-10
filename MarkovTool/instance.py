@@ -224,7 +224,7 @@ class Instance(Iterator):
         closed = []
         for c in self._collectors:
             if c._is_open:
-                c._redirect(self, new, self._entry()['backend'])
+                c.redirect(self, new)
             else:
                 closed.append(c)
         for c in closed:
