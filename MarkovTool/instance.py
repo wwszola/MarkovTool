@@ -96,9 +96,8 @@ class Instance(Iterator):
         return self._id    
 
     def __eq__(self, other: Self) -> bool:
-        """uses equality of _backend, _step, _state"""
-        return (type(self), self._backend, self._step, self._state) == \
-               (type(other), other._backend, other._step, other._state) 
+        """uses hash equality"""
+        return type(self) == type(other) and hash(self) == hash(other)
 
     def __str__(self) -> str:
         return self.__repr__()
