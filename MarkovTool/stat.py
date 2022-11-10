@@ -65,14 +65,25 @@ class Collector:
         start accepting entries and bind self to instances
     close(self)
         stop accepting entries
-    _length(self, id: int, backend)
-    put(self, desc: Description, id: int, step, state) -> bool
+    _match(self, group: dict, step: int, state: int) -> tuple[ChunkRaw, Hashable]
+        searches for the chunk containing specific value on correct step
+    put(self, instance: Hashable, step: int, state: int, backend: Hashable = None) -> bool
         try to make a new entry
+    redirect(self, src: Hashable, dst: Hashable) -> bool
+        copy entries of src as emitted by dst
+    length(self, id: int) -> int
+        returns step of the last entry put by an instance
+    retrieve(self, instance: Hashable, step: int) -> int
+        returns state put by an instance on given step
+    playback(self, instance: Hashable) -> Generator:
+        returns Generator yielding states put by an instance
     
     Valid instances:
-    Instances bound by passing to __init__ or open,
-    must implement method _bind_collector(self, collector)
-    Instances should emit their state by calling put
+    Instances bound by passing to __init__ or open, 
+    may implement method _bind_collector(self, collector),
+    must implement method _entry(self) returning dict with keys 
+    {'instance', 'step', 'state', 'backend'} where value for 'backend' may be None
+    Instances may emit their state by calling put with _entry() result as keyword arguments
     """
     _count: int = 0
     @staticmethod
@@ -113,17 +124,101 @@ class Collector:
         """Stop accepting entries"""
         self._is_open = False
 
-    def _redirect(self, src: Hashable, dst: Hashable, backend: Hashable) -> bool:
-        """copy entries of src as emitted by dst
+    def _match(self, group: dict[Hashable, list[ChunkRef | ChunkRaw]], step: int, state: int) -> tuple[ChunkRaw, Hashable]:
+        """searches for the chunk containing specific value on correct step
         
+        Parameters:
+        group: dict
+            dict for group of instances
+        step: int
+        state: int
+
+        Returns:
+        tuple[ChunkRaw, Hashable] 
+            chunk and the instance it belongs to
+        tuple[None, None]
+            no match found
+        """
+        for instance, tape in group.items():
+            for chunk in tape:
+                if chunk.type_ == ChunkType.RAW and chunk.start + len(chunk.data) > step:
+                    return (chunk, instance)
+
+        return (None, None)
+
+    def put(self, instance: Hashable, step: int, state: int, backend: Hashable = None) -> bool:
+        """Try to make a new entry
+        Makes sure no duplicates are present for instances from given backend
+        
+        Parameters:
+        instance: Hashable
+            see valid instances in Collector.__doc__
+        step: int
+        state: int
+        backend: Hashable = None
+            tag representing specific process
+
+        Returns:
+        True:
+            the entry has been accepted
+        False:
+            collector is closed or duplicate
+        """
+        if not self._is_open:
+            return False        
+
+        if backend is None:
+            backend = '__EMPTY__'
+        group = self._entries.setdefault(backend, dict())
+
+        raw_match, instance_ = self._match(group, step, state)
+        if instance_ == instance:
+            return False
+
+        tape = group.setdefault(instance, [])
+
+        if not tape:
+            if raw_match:
+                tape.append(ChunkRef(step, raw_match, 1))
+            else:
+                tape.append(ChunkRaw(step, [state]))
+            return True
+
+        last = tape[-1]
+        match last.type_, bool(raw_match):
+            case [ChunkType.REF, True]:
+                if last.point_to is raw_match:
+                    last.length += 1
+            case [ChunkType.RAW, True]:
+                tape.append(ChunkRef(step, raw_match, 1))
+            case [ChunkType.REF, False]:
+                tape.append(ChunkRaw(step, [state]))
+            case [ChunkType.RAW, False]:
+                last.data.append(state)
+            
+        return True
+
+    def redirect(self, src: Hashable, dst: Hashable) -> bool:
+        """copy entries of src as emitted by dst
+
+        see valid instances in Collector.__doc__    
         Parameters:
         src: Hashable
             instance to copy entries from
         dst: Hashable
             instance to put entries into
+        
+        Returns:
+        True:
+            success
+        False: 
+            'backend' value for instances' entries are not equal
+            src instance hasn't put an entry
         """
-        group = self._entries.get(backend, None)
-        if not group or src not in group:
+        src_backend = src._entry()['backend']
+        dst_backend = src._entry()['backend']
+        group = self._entries.get(src_backend, None)
+        if not group or src not in group or src_backend != dst_backend:
             return False
 
         src_tape = group[src]
@@ -136,8 +231,15 @@ class Collector:
                     dst_tape.append(ChunkRef(chunk.start, chunk, len(chunk.data)))
         return True
     
-    def length(self, instance: Hashable, backend: Hashable = None) -> int:
-        """returns """
+    def length(self, instance: Hashable) -> int:
+        """returns step of the last entry put by an instance
+        returns None if instance hasn't put an entry
+
+        Parameters:
+        instance: Hashable
+            see valid instances in Collector.__doc__
+        """
+        backend = instance._entry()['backend']
         if backend is None:
             backend = '__EMPTY__'
 
@@ -156,7 +258,19 @@ class Collector:
             case ChunkType.RAW:
                 return last.start + last.length
 
-    def _retrieve(self, instance: Hashable, step: int, backend: Hashable) -> int:
+    def retrieve(self, instance: Hashable, step: int) -> int:
+        """returns state put by an instance on given step
+        returns None if instance hasn't put an entry at that step
+        
+        Parameters:
+        instance: Hashable
+            see valid instances in Collector.__doc__
+        step: int
+        """
+        backend = instance._entry()['backend']
+        if backend is None:
+            backend = '__EMPTY__'
+        
         group = self._entries.get(backend, None)
         if not group:
             return None
@@ -176,22 +290,16 @@ class Collector:
 
         return None
 
-    def _match(self, instance: Hashable, step: int, state: int, backend: Hashable) -> tuple[int, int]:
-        group = self._entries.get(backend, None)
-        if not group:
-            return None
-        
-        tape = group.get(instance, None)
-        if not group:
-            return None
-        
-        for chunk in tape:
-            if chunk.type_ == ChunkType.RAW and chunk.start + len(chunk.data) > step:
-                return chunk if chunk.data[step - chunk.start] == state else None
-        
-        return None
+    def playback(self, instance: Hashable) -> Generator:
+        """returns Generator yielding states put by an instance
+        returns None if instance hasn't put an entry 
 
-    def playback(self, instance: Hashable, backend: Hashable = None) -> Generator:
+        Parameters:
+        instance: Hashable
+            see valid instances in Collector.__doc__
+        
+        """
+        backend = instance._entry()['backend']
         if backend is None:
             backend = '__EMPTY__'
         
@@ -214,54 +322,3 @@ class Collector:
                     for state in raw.data[start : start + chunk.length]:
                         yield state
         return None
-
-    def put(self, instance: Hashable, step: int, state: int, backend: Hashable = None) -> bool:
-        """Try to make a new entry
-
-        Makes sure no duplicates are present.
-        The entry is accepted if self._is_open == True,
-        and one of the following is also True:
-        - a chunk exists that was started by the same instance,
-        and awaits new value at the correct step
-        - no value in any chunk exists that could be 
-        matched correctly to the entry
-        Parameters:
-        TODO
-        Returns:
-        True if the entry has been accepted, False otherwise 
-        """
-        if not self._is_open:
-            return False        
-
-        if backend is None:
-            backend = '__EMPTY__'
-
-        group = self._entries.setdefault(backend, dict())
-        tape = group.setdefault(instance, [])
-
-        matches = list(filter(
-            lambda chunk: chunk is not None,
-            [self._match(instance_, step, state, backend) for instance_ in group.keys() if instance != instance_]
-        ))
-        raw = matches[0] if matches else None
-
-        if not tape:
-            if raw:
-                tape.append(ChunkRef(step, raw, 1))
-            else:
-                tape.append(ChunkRaw(step, [state]))
-            return True
-
-        last = tape[-1]
-        match last.type_, bool(raw):
-            case [ChunkType.REF, True]:
-                if last.point_to is raw:
-                    last.length += 1
-            case [ChunkType.RAW, True]:
-                tape.append(ChunkRef(step, raw, 1))
-            case [ChunkType.REF, False]:
-                tape.append(ChunkRaw(step, [state]))
-            case [ChunkType.RAW, False]:
-                last.data.append(state)
-            
-        return True
