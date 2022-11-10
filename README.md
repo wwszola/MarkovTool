@@ -123,10 +123,8 @@ Present in stat module
 ## TODO
 ### __version _0.2___
 - fill_random argument if initial_state too
-- manual instance
 - __better collector__:
 - - diff
-- - docstrings
 - - pretty summary 
 - - counting occurences, pairs, triples
 - - playback: maybe cashe full chunks??
