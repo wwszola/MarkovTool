@@ -1,5 +1,5 @@
 from copy import deepcopy, copy
-from typing import Callable, Iterable, Hashable
+from typing import Callable, Iterator, Iterable, Hashable
 from typing_extensions import Self
 from numpy.random import Generator, default_rng
 from itertools import islice
@@ -8,7 +8,7 @@ from .description import Stochastic
 from .stat import Collector
 
 
-class Instance(Iterable):
+class Instance(Iterator):
     """Representing a process specific to a backend
     A backend needs to be hashable
 
@@ -33,7 +33,7 @@ class Instance(Iterable):
     _has_stopped: bool = False
     _state: int = -1
         last state generated
-    _forced_state: int = None
+    _forced_state: int | Generator = None
         is assigned a value in state.setter
     _step: int = 0
         number of times __next__ has been called
@@ -49,8 +49,8 @@ class Instance(Iterable):
         uses hash equality
     __str__(self) -> str
     __repr__(self) -> str
-    _verify_state(self, value: int) -> int
-        abstract; should return veirified value
+    _verify_state(self, value: int | Iterable[int]) -> int | Generator
+        returns veirified state value
     _bind_collector(self, collector: Collector) -> None
         adds collector to self._collectors
     _unbind_collector(self, collector: Collector) -> None
@@ -62,7 +62,7 @@ class Instance(Iterable):
     __iter__(self) -> Self
         return self
     __next__(self) -> int
-        abstract; pick a new state, emit and return it 
+        pick a new state, emit and return it 
     take(self, n: int = None) -> list:
         returns list of next n generated states
     skip(self, n: int = None) -> None:
@@ -122,16 +122,21 @@ class Instance(Iterable):
             raise ValueError('No state generated yet')
 
     @state.setter 
-    def state(self, value: int) -> None:
+    def state(self, value: int | Iterable[int]) -> None:
         """assigns value to temporary self._forced_state which is
         assigned to self._state in the next call to __next__
         """
         value = self._verify_state(value)
         self._forced_state = value
 
-    def _verify_state(self, value: int) -> int:
+    def _verify_state(self, value: int | Iterable[int]) -> int | Generator:
         """returns argument value unchanged"""
-        return value
+        if isinstance(value, int):
+            return value
+        elif isinstance(value, Iterable):
+            return (_ for _ in value)
+        else:
+            return None
 
     def _bind_collector(self, collector: Collector) -> None:
         """adds collector to self._collectors"""
@@ -169,11 +174,18 @@ class Instance(Iterable):
         self._state = ...
         return super().__next__()
 
-        if _forced_state is not None, use that instead
+        if _forced_state is int, use that value
+        if _forced_state is Generator, use next value
         """
-        if self._forced_state is not None:
+        if isinstance(self._forced_state, int):
             self._state = self._forced_state
             self._forced_state = None
+        elif isinstance(self._forced_state, Generator):
+            value = next(self._forced_state, None)
+            if not value:
+                self._forced_state = None
+            else:
+                self._state = value
 
         self._emit()
         self._step += 1
