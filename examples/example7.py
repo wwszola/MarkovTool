@@ -12,7 +12,7 @@ for dim in range(3, 6):
 
     base = 3
     low_exponent, exponent = 4, 7
-    history = f.skip(base ** exponent)
+    history = f.take(base ** exponent)
 
     d2 = Markov(d1.dimension, 0, initial_state = 0)
     errors[dim] = OrderedDict()
