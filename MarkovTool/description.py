@@ -61,7 +61,7 @@ class Description():
     def __repr__(self) -> str:
         name = type(self).__name__
         shape = str(self._shape)
-        return f'{name}(_id: {self._id}, my_seed: {self._my_seed}, shape: {shape})'
+        return f'{name}(_id: {self._id}, shape: {shape})'
 
     @property
     def shape(self) -> tuple[int]:
@@ -125,6 +125,7 @@ class Stochastic(Description):
     Methods:
     __init__(self, shape, my_seed, matrix, initial_state)
         constructor setting shape, my_seed, matrix and initial_state
+    __repr__(self) -> str
     _verify_matrix(self, value: list[list[float]] | ndarray) -> ndarray
         returns verified copy of the matrix
     _verify_initial_state(self, value: int | ndarray) -> int | ndarray
@@ -155,6 +156,11 @@ class Stochastic(Description):
         self._initial_state_cumsum: ndarray = None
         self.initial_state = initial_state
     
+    def __repr__(self) -> str:
+        name = type(self).__name__
+        shape = str(self._shape)
+        return f'{name}(_id: {self._id}, my_seed: {self._my_seed}, shape: {shape})'
+
     @property
     def my_seed(self) -> int:
         """value which seeds the instance of a process
