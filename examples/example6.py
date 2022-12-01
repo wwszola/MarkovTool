@@ -1,15 +1,24 @@
-from MarkovTool import Stochastic, Dependent
+from MarkovTool import Markov
+from MarkovTool import Endless, Dependent
+from MarkovTool import Model, Collector
 
-from itertools import islice
+process1 = Markov(3).fill_random()
+process1.initial_state = 0
 
-process = Stochastic((3, 3), my_seed=5).fill_random()
+mat = process1.matrix
+# for i in range(process1.dimension): mat[i, i] = 0
+process2 = process1.variant(matrix = mat)
 
-# tree connection instead of graph model should be sufficient
-# won't work with shape checking in init
-node1 = Dependent(process, None)
-node2 = Dependent(process, node1)
-node1._parent = node2
-node2._state = 0
+node1 = Endless(process1)
+node2 = Dependent(process2, node1)
+c = Collector(node1, node2)
 
-for v1, v2 in islice(zip(node1, node2), 0, 15):    
-    print(v1, v2)
+m = Model((node1, [1]), (node2, [1]))
+m.forward(32)
+
+diff = map(
+    lambda s1, s2: s2 if s1 != s2 else None,
+    c.playback(node1), c.playback(node2)
+)
+print(list(c.playback(node1)))
+print(list(diff))
