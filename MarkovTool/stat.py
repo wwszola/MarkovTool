@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Hashable
-from collections.abc import Generator
+from typing import Hashable, Generator
+from itertools import islice
 
 class ChunkType(Enum):
     """Enum class, use this as a pattern for matching"""
@@ -77,7 +77,9 @@ class Collector:
         returns state put by an instance on given step
     playback(self, instance: Hashable) -> Generator:
         returns Generator yielding states put by an instance
-    
+    count(self, instance, windows = (1), step_range = None) -> dict[tuple, int]
+        count number of occurences of patterns
+
     Valid instances:
     Instances bound by passing to __init__ or open, 
     may implement method _bind_collector(self, collector),
@@ -322,3 +324,39 @@ class Collector:
                     for state in raw.data[start : start + chunk.length]:
                         yield state
         return None
+
+    def count(self, instance: Hashable, windows: tuple[int] = (1, ), step_range: tuple[int, int] = None) -> dict[tuple, int]:
+        """count number of occurences of patterns
+
+        Parameters:
+        instance: Hashable
+            see valid instances in Collector.__doc__
+        windows: tuple[int] = (1,)
+            lengths of patterns which are taken into account
+        step_range: tuple[int, int] = None
+            specifies range that counting is done over
+            if step_range is None whole playback is iterated
+
+        Returns:
+        dict[tuple, int]
+            histogram of all patterns with specified lengths
+        None
+            if instance hasn't put an entry in specified range
+        """
+        history = self.playback(instance)
+        if not history:
+            return None
+
+        if step_range:
+            history = islice(history, step_range[0], step_range[1])
+        history = list(history)
+        if len(history) == 0:
+            return None
+        
+        result: dict[tuple, int] = dict()
+        for width in windows:
+            for i in range(len(history) - width + 1):
+                pattern = tuple(history[i : i + width])
+                c = result.setdefault(pattern, 0)
+                result[pattern] = c + 1
+        return result
